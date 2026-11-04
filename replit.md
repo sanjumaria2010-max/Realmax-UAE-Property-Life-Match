@@ -1,10 +1,11 @@
-# [Project name]
+# Sakan
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Life-first UAE property discovery for renting, buying to live, and investing, graduated from the approved Sakan canvas prototype.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/sakan run dev` — frontend, served at `/` through its managed workflow
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -22,23 +23,31 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/sakan/` — standalone responsive frontend
+- `artifacts/mockup-sandbox/src/components/mockups/sakan/` — preserved original canvas design
+- `artifacts/api-server/src/routes/sakan.ts` — catalogue, matching, workspace, and enquiry endpoints
+- `artifacts/api-server/src/lib/sakan-engine.ts` — illustrative catalogue and server-side eligibility/ranking
+- `lib/api-spec/openapi.yaml` — generated API contract source
+- `lib/db/src/schema/sakan.ts` — private anonymous workspaces and enquiry records
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The current release intentionally uses labelled sample inventory and synthetic travel estimates; there is no licensed listing feed, routing provider, mortgage service, or agent delivery connection.
+- Workspaces are anonymous and browser-scoped, not user accounts. A private HTTP-only cookie grants access; clearing or losing the cookie prevents recovery. Add managed authentication before claiming cross-device access.
+- Enquiries are recorded in Sakan, never silently forwarded. User consent covers storage; household destination data is not included.
+- Preserve the approved canvas design when changing functionality; the original mockup remains available for reference.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+All three journeys support editable briefs, sample destination/routine matching, financial planning, ranked property shortlists, area summaries, property details, comparisons, saved homes, and private enquiry history. Workspace state and enquiry records persist in PostgreSQL.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+All three audiences are required: renters, live-in homebuyers, and property investors. Household life—not listing browsing—is the core home-seeking concept.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+Regenerate API clients after contract changes. Shared API paths are `/api/sakan/*`. Do not replace illustrative labels with live-market claims without verified source connections.
 
 ## Pointers
 

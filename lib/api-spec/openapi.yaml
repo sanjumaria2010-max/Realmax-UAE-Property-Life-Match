@@ -11,6 +11,69 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /sakan/catalog:
+    get:
+      operationId: getSakanCatalog
+      responses:
+        "200":
+          description: Illustrative property catalogue
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SakanCatalog" }
+  /sakan/workspace:
+    get:
+      operationId: getSakanWorkspace
+      responses:
+        "200":
+          description: Private browser workspace
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SakanWorkspace" }
+    put:
+      operationId: saveSakanWorkspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SakanWorkspaceInput" }
+      responses:
+        "200":
+          description: Workspace persisted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SakanWorkspace" }
+    delete:
+      operationId: deleteSakanWorkspace
+      responses:
+        "204": { description: Workspace and enquiries deleted }
+  /sakan/matches:
+    post:
+      operationId: calculateSakanMatches
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SakanMatchInput" }
+      responses:
+        "200":
+          description: Calculated matching sample properties
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SakanMatches" }
+  /sakan/enquiries:
+    post:
+      operationId: createSakanEnquiry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SakanEnquiryInput" }
+      responses:
+        "201":
+          description: Recorded, not forwarded to an external agency
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SakanEnquiry" }
   /healthz:
     get:
       operationId: healthCheck
@@ -26,6 +89,76 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    SakanObject:
+      type: object
+      additionalProperties: true
+    SakanCatalog:
+      type: object
+      required: [listings, places, sample]
+      properties:
+        listings:
+          type: array
+          items: { $ref: "#/components/schemas/SakanObject" }
+        places: { type: array, items: { type: string } }
+        sample: { type: boolean }
+    SakanWorkspaceInput:
+      type: object
+      required: [draft, saved, compare]
+      properties:
+        draft: { $ref: "#/components/schemas/SakanObject" }
+        saved: { type: array, maxItems: 100, items: { type: string, maxLength: 40 } }
+        compare: { type: array, maxItems: 3, items: { type: string, maxLength: 40 } }
+    SakanWorkspace:
+      allOf:
+        - $ref: "#/components/schemas/SakanWorkspaceInput"
+        - type: object
+          required: [enquiries]
+          properties:
+            enquiries:
+              type: array
+              items: { $ref: "#/components/schemas/SakanEnquiry" }
+    SakanMatchInput:
+      type: object
+      required: [goal, brief, destinations, hidden, priority]
+      properties:
+        goal: { type: string, enum: [rent, live, invest] }
+        brief: { $ref: "#/components/schemas/SakanObject" }
+        destinations:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/SakanObject" }
+        hidden: { type: array, maxItems: 100, items: { type: string } }
+        priority: { type: string, enum: [balanced, commute, cost, risk] }
+    SakanMatches:
+      type: object
+      required: [matches, calculatedAt, sample]
+      properties:
+        matches:
+          type: array
+          items: { $ref: "#/components/schemas/SakanObject" }
+        calculatedAt: { type: string }
+        sample: { type: boolean }
+    SakanEnquiryInput:
+      type: object
+      required: [listingId, name, contact, message, consent, requestId]
+      properties:
+        listingId: { type: string, minLength: 1, maxLength: 40 }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        contact: { type: string, minLength: 5, maxLength: 150 }
+        message: { type: string, minLength: 1, maxLength: 2000 }
+        consent: { type: boolean }
+        requestId: { type: string, format: uuid }
+    SakanEnquiry:
+      type: object
+      required: [id, listingId, name, contact, message, status, createdAt]
+      properties:
+        id: { type: string }
+        listingId: { type: string }
+        name: { type: string }
+        contact: { type: string }
+        message: { type: string }
+        status: { type: string }
+        createdAt: { type: string }
     HealthStatus:
       type: object
       properties:

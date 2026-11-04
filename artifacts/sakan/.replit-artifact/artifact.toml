@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Sakan — Find a home that fits your life"
+description = "Life-first UAE property discovery for renting, buying to live, and investing. Functional financial scenarios, property matching, comparison, saved briefs and enquiries using explicitly illustrative sample listings."
+version = "1.0.0"
+id = "artifacts/sakan"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25316
+
+[services.development]
+run = "pnpm --filter @workspace/sakan run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sakan", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/sakan/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25316"
+BASE_PATH = "/"
