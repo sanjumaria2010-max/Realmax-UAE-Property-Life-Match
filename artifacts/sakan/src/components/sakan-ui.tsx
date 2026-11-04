@@ -3,6 +3,11 @@ import { Check, ChevronLeft, ChevronRight, MapPin, type LucideIcon } from 'lucid
 import { areaKey, type Destination } from '../sakan-data';
 
 export const imageUrl = `${import.meta.env.BASE_URL}images/sakan-neighborhood.jpg`;
+/** Decorative Dubai night photography (Pexels). Never used as listing imagery. */
+export const cityImages = {
+  marina: `${import.meta.env.BASE_URL}images/dubai-marina-night.jpg`,
+  skyline: `${import.meta.env.BASE_URL}images/dubai-skyline-lights.jpg`,
+};
 
 const hash = (value: string) => [...value].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 7);
 const tints = ['rgba(255,138,61,.34)', 'rgba(120,60,30,.42)', 'rgba(255,190,120,.24)', 'rgba(70,40,30,.5)', 'rgba(210,95,45,.32)', 'rgba(40,30,60,.38)'];
