@@ -126,7 +126,7 @@ export const CreateSakanEnquiryBody = zod.object({
   "contact": zod.string().min(createSakanEnquiryBodyContactMin).max(createSakanEnquiryBodyContactMax),
   "message": zod.string().min(1).max(createSakanEnquiryBodyMessageMax),
   "consent": zod.boolean(),
-  "requestId": zod.string().uuid()
+  "requestId": zod.uuid()
 })
 
 export const CreateSakanEnquiryResponse = zod.object({
