@@ -324,6 +324,7 @@ body:has(.sakan-root){margin:0;background:#032b46}
 .sakan-root :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .rx-question-layout{position:relative;z-index:1;width:100%;max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(0,820px) 280px;gap:clamp(20px,4vw,64px);align-items:start;justify-content:space-between}
 .rx-question-inner{max-width:none}
+.rx-question-layout-no-rail{grid-template-columns:minmax(0,820px)}
 .rx-question-bg img{transition:object-position .9s ease,opacity .6s ease}
 .rx-goal-rent .rx-question-bg img{object-position:20% 40%}.rx-goal-live .rx-question-bg img{object-position:55% 60%}.rx-goal-invest .rx-question-bg img{object-position:90% 30%;opacity:.26}
 .rx-q-title{animation:rx-title-in .55s cubic-bezier(.2,.7,.2,1) both}

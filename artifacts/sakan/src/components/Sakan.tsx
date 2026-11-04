@@ -593,7 +593,7 @@ export function Sakan() {
   ];
   const questionView = <div className={`rx-question rx-goal-${draft.goal}`}>
     <div className="rx-question-bg" aria-hidden="true"><img src={draft.goal === 'invest' ? cityImages.skyline : cityImages.marina} alt="" /><span className="rx-city-glow" /></div>
-    <div className="rx-question-layout">
+    <div className={`rx-question-layout${current === 'goal' ? ' rx-question-layout-no-rail' : ''}`}>
     <div className="rx-question-inner" key={current}>
       <div className="rx-progress" aria-label={`Question ${qIndex + 1} of ${questionKeys.length}`}>
         <div className="rx-progress-label"><span>{String(qIndex + 1).padStart(2, '0')}</span> / {String(questionKeys.length).padStart(2, '0')} · {qText[current].kicker}</div>
@@ -610,7 +610,7 @@ export function Sakan() {
           : <button className="rx-cta" data-testid="button-next" onClick={goNext}>{current === 'places' && draft.destinations.length === 0 ? 'Skip places' : 'Next'} <ArrowRight size={16} /></button>}
       </div>
     </div>
-    <JourneyRail steps={questionKeys.map((key) => ({ key, label: stepLabels[key] }))} index={qIndex} lines={railLines} onJump={(key) => { setError(''); setQKey(key as QKey); }} />
+    {current !== 'goal' && <JourneyRail steps={questionKeys.map((key) => ({ key, label: stepLabels[key] }))} index={qIndex} lines={railLines} onJump={(key) => { setError(''); setQKey(key as QKey); }} />}
     </div>
   </div>;
 
