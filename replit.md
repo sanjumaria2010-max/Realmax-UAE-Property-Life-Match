@@ -1,6 +1,6 @@
 # Realmax
 
-Life-first UAE property discovery for renting, buying to live, and investing. The live app is branded Realmax with a cinematic dark theme and orange accents; internal Sakan identifiers remain unchanged to preserve API and workspace compatibility.
+Life-first UAE property discovery for renting, buying to live, and investing. The live app is branded Realmax with an ocean-blue theme, white text, and Dubai skyline imagery; internal Sakan identifiers remain unchanged to preserve API and workspace compatibility.
 
 ## Run & Operate
 
