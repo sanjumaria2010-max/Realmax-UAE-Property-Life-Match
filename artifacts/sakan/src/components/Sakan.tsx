@@ -312,6 +312,17 @@ export function Sakan() {
     try { await saveNow(); return true; }
     catch (saveError) { setError(errorText(saveError)); return false; }
   };
+  const goHome = async () => {
+    if (!(await flushBeforeLeaving())) return;
+    abortRef.current?.abort();
+    setRankingBusy(false);
+    setRankingError('');
+    setError('');
+    setModal(null);
+    setQKey('goal');
+    setScreen('questions');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
   const changeGoal = (goal: Goal) => {
     updateDraft({ goal });
     setError('');
@@ -753,8 +764,9 @@ export function Sakan() {
   const saveStatus = saveState === 'loading' ? 'Loading workspace' : saveState === 'saving' ? 'Saving' : saveState === 'saved' ? 'Saved' : 'Could not save';
   return <div className={`sakan-root rx-screen-${screen}`}>
     <header className="rx-topbar">
-      <button className="rx-brand" data-testid="button-brand" onClick={async () => { if (await flushBeforeLeaving()) setScreen(resultsFresh ? 'results' : 'questions'); }} aria-label="Realmax home">REALMAX</button>
+      <button className="rx-brand" data-testid="button-brand" onClick={() => void goHome()} aria-label="Realmax home">REALMAX</button>
       <nav className="rx-nav" aria-label="Main navigation">
+        <button data-testid="button-go-home" onClick={() => void goHome()} disabled={!workspaceReady || resetBusy}><Home size={15} aria-hidden="true" />Go to home</button>
         {resultsFresh && screen !== 'results' && <button data-testid="link-matches" onClick={() => setScreen('results')}>My matches</button>}
         <button data-testid="link-my-list" className={screen === 'privacy' ? 'active' : ''} onClick={async () => { if (await flushBeforeLeaving()) setScreen('privacy'); }}>My list{saved.length > 0 && <span className="rx-count">{saved.length}</span>}</button>
         <button data-testid="link-how" onClick={() => setModal('how')}>How it works</button>
