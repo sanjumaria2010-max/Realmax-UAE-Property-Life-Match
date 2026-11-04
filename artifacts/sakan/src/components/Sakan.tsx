@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, BadgeCheck, BedDouble, Bookmark, BriefcaseBusiness, CarFront, Check,
-  Church, Clock3, Dumbbell, Eye, Heart, Home, Info, Landmark, MapPin, Pencil, Plus, RotateCcw,
-  Scale, School, Search, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Wallet, X,
+  ArrowLeft, ArrowRight, BadgeCheck, BedDouble, Bookmark, BookmarkCheck, Building2, CarFront, Check,
+  Church, Clock3, Dumbbell, EyeOff, Heart, Home, Info, Landmark, MapPin, Pencil, Play, Plus, RotateCcw,
+  Scale, School, Search, ShieldCheck, Trash2, Wallet, X,
 } from 'lucide-react';
 import {
   calculateSakanMatches, createSakanEnquiry, deleteSakanWorkspace, getSakanCatalog,
@@ -10,15 +10,17 @@ import {
 } from '@workspace/api-client-react';
 import type { SakanEnquiryInput, SakanWorkspaceInput } from '@workspace/api-client-react';
 import {
-  areaKey, estimateScore, formatAED, initialBrief, samplePlaces as fallbackPlaces,
+  estimateScore, formatAED, initialBrief, samplePlaces as fallbackPlaces,
   travelFor, type Brief, type Destination, type Enquiry, type Goal, type Listing, type Match, type Priority,
 } from '../sakan-data';
+import { Choice, Dialog, DubaiMap, MoneyField, Row, imageUrl, posterStyle } from './sakan-ui';
 import './sakan.css';
 
-type Screen = 'home' | 'results' | 'detail' | 'privacy';
+type Screen = 'questions' | 'results' | 'detail' | 'privacy';
 type Modal = 'destination' | 'compare' | 'enquiry' | 'how' | null;
 type WorkspaceDraft = { goal: Goal; brief: Brief; destinations: Destination[]; personalUse: boolean; priority: Priority };
 type SaveState = 'loading' | 'saved' | 'saving' | 'error';
+type QKey = 'goal' | 'use' | 'places' | 'rhythm' | 'money' | 'strategy' | 'risk' | 'home' | 'comfort' | 'review';
 
 const firstDestinations: Destination[] = [
   { id: 'd1', kind: 'Work', label: 'My work', place: 'DIFC Gate Avenue', address: 'DIFC, Dubai', frequency: 5, mode: 'car', maxMinutes: 35, required: true, preferred: false },
@@ -31,11 +33,11 @@ const goalCopy: Record<Goal, { title: string; sub: string }> = {
   live: { title: 'Buy to live', sub: 'Find a place that feels right beyond the floor plan.' },
   invest: { title: 'Invest thoughtfully', sub: 'See the assumptions, costs and tradeoffs up front.' },
 };
+const priorityLabel: Record<Priority, string> = { balanced: 'Balanced', commute: 'Closer to routine', cost: 'Lower cost', risk: 'Lower downside' };
 const iconFor = (kind: string) => kind.toLowerCase().includes('school') ? School
   : kind.toLowerCase().includes('worship') ? Church
     : kind.toLowerCase().includes('sport') ? Dumbbell
       : kind.toLowerCase().includes('partner') ? Heart : MapPin;
-const imageUrl = `${import.meta.env.BASE_URL}images/sakan-neighborhood.jpg`;
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 const objectValue = (value: unknown) => value && typeof value === 'object' ? value as Record<string, unknown> : {};
 const normalizeDraft = (raw: unknown): WorkspaceDraft => {
@@ -53,60 +55,8 @@ const draftForSave = (draft: WorkspaceDraft) => ({
   goal: draft.goal, brief: draft.brief, destinations: draft.destinations,
   personalUse: draft.personalUse, priority: draft.priority,
 });
-
-function DubaiMap({ destinations }: { destinations: Destination[] }) {
-  const labels: Array<[string, number, number]> = [['Dubai Marina', 72, 45], ['Downtown', 52, 34], ['DIFC', 56, 30], ['Jumeirah', 43, 48], ['Dubai Hills', 40, 30], ['JVC', 49, 59], ['Creek', 69, 27], ['Palm', 29, 39]];
-  const coords: Record<string, [number, number]> = { DIFC: [58, 29], 'Dubai Marina': [72, 47], 'Al Barsha': [40, 48], 'Business Bay': [53, 36], 'Dubai Internet City': [63, 40], Jumeirah: [43, 48], JVC: [49, 59] };
-  const colors = ['#d77c5e', '#28756c', '#d9af62', '#586e87', '#a47955'];
-  return <div className="sakan-map" role="img" aria-label="Illustrative schematic map of Dubai showing sample areas and destination markers">
-    <svg viewBox="0 0 640 300" preserveAspectRatio="xMidYMid slice">
-      <rect width="640" height="300" fill="#e5eee4" />
-      <path d="M0 182 C50 165 78 180 130 163 C190 144 203 177 250 155 C310 126 325 146 368 121 C415 95 448 109 485 77 C523 44 563 46 640 8 L640 0 L0 0Z" fill="#d7e8e5" />
-      <path d="M23 18 C80 59 126 44 166 80 S238 103 273 135 S333 168 375 156 S444 137 479 166 S557 185 610 220" fill="none" stroke="#faf8e9" strokeWidth="17" strokeLinecap="round" />
-      <path d="M80 289 C102 245 127 214 180 200 S254 179 278 146 S332 94 385 86 S475 69 543 15" fill="none" stroke="#fffdf5" strokeWidth="10" strokeLinecap="round" />
-      <path d="M150 24 L208 92 L259 114 L337 151 L403 178 L456 241" fill="none" stroke="#f8f5e8" strokeWidth="7" strokeLinecap="round" />
-      <path d="M320 276 C340 230 344 195 379 170 S429 148 470 121" fill="none" stroke="#d5ad77" strokeWidth="3" strokeDasharray="5 8" />
-      <path d="M31 131 Q92 107 154 127 T272 153" fill="none" stroke="#a9d2cf" strokeWidth="13" strokeLinecap="round" />
-      <g fill="#c9ddc8"><path d="M112 104 l22-7 22 13-10 13-26-4z" /><path d="M312 52l35-10 17 18-21 14-30-5z" /><path d="M516 199l36-13 25 13-9 26-39 2z" /><path d="M226 221l33-11 17 13-18 18-33-4z" /></g>
-      {labels.map(([label, x, y]) => <g key={label} transform={`translate(${x * 6.4},${y * 3})`}><circle r="3" fill="#6e8d7c" /><text x="7" y="3" fill="#587568" fontSize="9" fontFamily="DM Sans, sans-serif">{label}</text></g>)}
-      {destinations.slice(0, 5).map((destination, i) => {
-        const [x, y] = coords[areaKey(destination.place)] || [55, 40];
-        return <g key={destination.id} transform={`translate(${x * 6.4},${y * 3})`}>
-          <circle r="13" fill={colors[i % colors.length]} opacity=".16" /><circle r="7" fill={colors[i % colors.length]} stroke="#fffef8" strokeWidth="2" />
-          <text x="11" y="-9" fill="#234b47" fontSize="8" fontWeight="700" fontFamily="DM Sans, sans-serif">{destination.label}</text>
-        </g>;
-      })}
-    </svg>
-    <div className="sakan-map-caption"><MapPin size={12} /> Dubai, drawn schematically · illustrative locations, not navigation</div>
-  </div>;
-}
-
-function Dialog({ titleId, children, onClose, wide = false }: { titleId: string; children: ReactNode; onClose: () => void; wide?: boolean }) {
-  const dialogRef = useRef<HTMLElement>(null);
-  const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    dialogRef.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); onCloseRef.current(); }
-      if (event.key === 'Tab' && dialogRef.current) {
-        const items = [...dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href]')];
-        if (!items.length) return;
-        const first = items[0], last = items[items.length - 1];
-        const active = document.activeElement;
-        if (!dialogRef.current.contains(active)) { event.preventDefault(); (event.shiftKey ? last : first).focus(); }
-        else if (event.shiftKey && (active === first || active === dialogRef.current)) { event.preventDefault(); last.focus(); }
-        else if (!event.shiftKey && (active === last || active === dialogRef.current)) { event.preventDefault(); first.focus(); }
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => { document.removeEventListener('keydown', onKeyDown); previous?.focus(); };
-  }, []);
-  return <div className="sakan-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onCloseRef.current(); }}>
-    <section ref={dialogRef} tabIndex={-1} className={`sakan-modal${wide ? ' sakan-modal-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId}>{children}</section>
-  </div>;
-}
+const keyFor = (goal: Goal, brief: Brief, destinations: Destination[], priority: Priority) => JSON.stringify({ goal, brief, destinations, priority });
+const monthlyLoan = (principal: number) => principal * (.0525 / 12) / (1 - Math.pow(1 + .0525 / 12, -240));
 
 export function Sakan() {
   const [catalog, setCatalog] = useState<Listing[]>([]);
@@ -118,8 +68,8 @@ export function Sakan() {
   const [saved, setSaved] = useState<string[]>([]);
   const [compare, setCompare] = useState<string[]>([]);
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
-  const [step, setStep] = useState(0);
-  const [screen, setScreen] = useState<Screen>('home');
+  const [qKey, setQKey] = useState<QKey>('goal');
+  const [screen, setScreen] = useState<Screen>('questions');
   const [selected, setSelected] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [editing, setEditing] = useState<Destination | null>(null);
@@ -127,6 +77,7 @@ export function Sakan() {
   const [hidden, setHidden] = useState<string[]>([]);
   const [undoHidden, setUndoHidden] = useState<string | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [matchedKey, setMatchedKey] = useState('');
   const [calculatedAt, setCalculatedAt] = useState('');
   const [rankingBusy, setRankingBusy] = useState(false);
   const [rankingError, setRankingError] = useState('');
@@ -148,12 +99,12 @@ export function Sakan() {
   const resetInProgressRef = useRef(false);
   const isInvest = draft.goal === 'invest';
   const activeDests = isInvest && !draft.personalUse ? [] : draft.destinations;
+  const resultsFresh = matchedKey !== '' && matchedKey === keyFor(draft.goal, draft.brief, activeDests, draft.priority);
 
   const loadWorkspace = useCallback(async (signal?: AbortSignal) => {
     const workspace = await getSakanWorkspace({ signal });
     if (dirtyRef.current !== savedRevisionRef.current) return;
-    const serverDraft = normalizeDraft(workspace.draft);
-    setDraft(serverDraft);
+    setDraft(normalizeDraft(workspace.draft));
     setSaved(workspace.saved);
     setCompare(workspace.compare);
     setEnquiries(workspace.enquiries);
@@ -227,35 +178,67 @@ export function Sakan() {
     const timer = window.setTimeout(() => setToast(''), 2800);
     return () => window.clearTimeout(timer);
   }, [toast]);
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [screen, qKey]);
 
   const updateDraft = (patch: Partial<WorkspaceDraft>) => {
     touch();
     setDraft((previous) => ({ ...previous, ...patch }));
   };
-  const updateBrief = (key: keyof Brief, value: Brief[keyof Brief]) =>
-    updateDraft({ brief: { ...draft.brief, [key]: value } as Brief });
+  const updateBrief = (key: keyof Brief, value: Brief[keyof Brief]) => {
+    touch();
+    setDraft((previous) => ({ ...previous, brief: { ...previous.brief, [key]: value } as Brief }));
+  };
   const saveNow = useCallback(async (payload = snapshot()) => {
     if (!workspaceReady) throw new Error('Your private workspace is still loading. Please try again.');
     await persist(payload);
   }, [workspaceReady, persist, snapshot]);
-  const activeStep = step;
-  const stepTitles = isInvest && !draft.personalUse ? ['Finance', 'Preferences', 'Review'] : ['Your places', 'Weekly rhythm', 'Budget', 'Preferences', 'Review'];
-  const stepCount = stepTitles.length;
-  const validate = () => {
-    if (draft.goal === 'rent' && draft.brief.rentBudget <= 0) return 'Enter a positive annual rent budget.';
-    if (draft.goal === 'live' && (draft.brief.buyBudget <= 0 || draft.brief.monthlyPayment < 0)) return 'Enter a positive purchase budget and non-negative monthly amount.';
-    if (draft.goal === 'invest' && (draft.brief.capital <= 0 || draft.brief.horizon < 1)) return 'Enter a positive investment amount and a horizon of at least one year.';
+
+  // ---------- Question flow ----------
+  const questionKeys = useMemo(() => {
+    const keys: QKey[] = ['goal'];
+    if (isInvest) keys.push('use');
+    if (!isInvest || draft.personalUse) { keys.push('places'); if (draft.destinations.length) keys.push('rhythm'); }
+    keys.push('money');
+    if (isInvest) keys.push('strategy', 'risk');
+    keys.push('home', 'comfort', 'review');
+    return keys;
+  }, [isInvest, draft.personalUse, draft.destinations.length]);
+  const current: QKey = questionKeys.includes(qKey) ? qKey : qKey === 'rhythm' || qKey === 'places' ? 'money' : 'goal';
+  const qIndex = questionKeys.indexOf(current);
+
+  const questionError = (key: QKey) => {
+    const b = draft.brief;
+    if (key === 'money') {
+      if (draft.goal === 'rent') {
+        if (!(b.rentBudget > 0)) return 'Enter your annual rent ceiling in AED to continue.';
+        if (!(b.rentUpfront > 0)) return 'Enter the upfront amount you have available in AED.';
+      } else if (draft.goal === 'live') {
+        if (!(b.buyBudget > 0)) return 'Enter your purchase price ceiling in AED to continue.';
+        if (!(b.downPayment > 0)) return 'Enter the cash you have available now in AED.';
+        if (!(b.monthlyPayment > 0)) return 'Enter a comfortable monthly amount in AED.';
+      } else if (!(b.capital > 0)) return 'Enter the capital you can invest in AED to continue.';
+    }
+    if (key === 'strategy' && (b.horizon < 1 || b.horizon > 30)) return 'Choose a horizon between 1 and 30 years.';
     return '';
   };
-  const calculate = useCallback(async (nextHidden = hidden, nextPriority = draft.priority, navigate = true) => {
-    const validation = validate();
-    if (validation) { setError(validation); return false; }
+  const validate = () => {
+    for (const key of questionKeys) {
+      const message = questionError(key);
+      if (message) return { key, message };
+    }
+    return null;
+  };
+
+  const calculate = async (nextHidden = hidden, nextPriority = draft.priority, navigate = true) => {
+    const invalid = validate();
+    if (invalid) { setError(invalid.message); setQKey(invalid.key); setScreen('questions'); return false; }
     setError('');
     setRankingError('');
     setRankingBusy(true);
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    const requestKey = keyFor(draft.goal, draft.brief, activeDests, nextPriority);
     try {
       await saveNow();
       const response = await calculateSakanMatches({
@@ -264,6 +247,7 @@ export function Sakan() {
       if (controller.signal.aborted) return false;
       setMatches(response.matches as unknown as Match[]);
       setCalculatedAt(response.calculatedAt);
+      setMatchedKey(requestKey);
       if (navigate) setScreen('results');
       return true;
     } catch (calculateError) {
@@ -272,17 +256,35 @@ export function Sakan() {
     } finally {
       if (!controller.signal.aborted) setRankingBusy(false);
     }
-  }, [activeDests, draft, hidden, saveNow]);
+  };
+
+  const goNext = () => {
+    const message = questionError(current);
+    if (message) { setError(message); return; }
+    setError('');
+    if (qIndex < questionKeys.length - 1) setQKey(questionKeys[qIndex + 1]);
+  };
+  const goBack = () => {
+    setError('');
+    if (qIndex > 0) setQKey(questionKeys[qIndex - 1]);
+    else if (resultsFresh) setScreen('results');
+  };
+  const editFromResults = async (key: QKey = 'review') => {
+    try { await saveNow(); } catch (saveError) { setError(errorText(saveError)); }
+    setRankingError('');
+    setQKey(key);
+    setScreen('questions');
+  };
 
   const changePriority = (priority: Priority) => {
     updateDraft({ priority });
-    void calculate(hidden, priority, screen === 'results');
+    void calculate(hidden, priority, true);
   };
   const toggleSave = async (id: string) => {
     const next = saved.includes(id) ? saved.filter((item) => item !== id) : [...saved, id];
     touch();
     setSaved(next);
-    try { await saveNow(snapshot(draft, next, compare)); setToast(next.includes(id) ? 'Home saved to your private workspace' : 'Home removed from saved'); }
+    try { await saveNow(snapshot(draft, next, compare)); setToast(next.includes(id) ? 'Saved to My list' : 'Removed from My list'); }
     catch (saveError) { setError(errorText(saveError)); }
   };
   const toggleCompare = async (id: string) => {
@@ -290,7 +292,7 @@ export function Sakan() {
     const next = compare.includes(id) ? compare.filter((item) => item !== id) : [...compare, id];
     touch();
     setCompare(next);
-    try { await saveNow(snapshot(draft, saved, next)); }
+    try { await saveNow(snapshot(draft, saved, next)); setToast(next.includes(id) ? `Added to compare (${next.length}/3)` : 'Removed from compare'); }
     catch (saveError) { setError(errorText(saveError)); }
   };
   const hideListing = (id: string) => {
@@ -311,21 +313,18 @@ export function Sakan() {
     catch (saveError) { setError(errorText(saveError)); return false; }
   };
   const changeGoal = (goal: Goal) => {
-    const brief = { ...draft.brief };
-    if (goal === 'rent') brief.rentBudget = Math.max(brief.rentBudget, 70000);
-    if (goal === 'live') brief.buyBudget = Math.max(brief.buyBudget, 850000);
-    if (goal === 'invest') brief.capital = Math.max(brief.capital, 850000);
-    updateDraft({ goal, brief });
-    setStep(0);
+    updateDraft({ goal });
     setError('');
   };
   const openDestination = (destination?: Destination) => {
+    setError('');
     setEditing(destination?.id ? destination : null);
-    setDraftDest(destination?.id ? { ...destination } : { id: '', kind: 'Work', label: 'My work', place: places[0] || fallbackPlaces[0], address: '', frequency: 5, mode: 'car', maxMinutes: 30, required: false, preferred: true });
+    setDraftDest(destination ? { ...destination } : { id: '', kind: 'Work', label: 'My work', place: places[0] || fallbackPlaces[0], address: '', frequency: 5, mode: 'car', maxMinutes: 30, required: false, preferred: true });
     setModal('destination');
   };
   const saveDestination = () => {
     if (!draftDest.label.trim() || !draftDest.place.trim()) { setError('Add a destination name and place to continue.'); return; }
+    if (!places.includes(draftDest.place)) { setError('Choose one of the supported sample places.'); return; }
     if (draftDest.maxMinutes < 5 || draftDest.maxMinutes > 120) { setError('Travel limit must be between 5 and 120 minutes.'); return; }
     const next = editing
       ? draft.destinations.map((destination) => destination.id === editing.id ? draftDest : destination)
@@ -333,7 +332,7 @@ export function Sakan() {
     updateDraft({ destinations: next });
     setModal(null);
     setError('');
-    setToast(editing ? 'Destination updated' : 'Destination added');
+    setToast(editing ? 'Place updated' : 'Place added');
   };
   const resetWorkspace = async () => {
     if (!window.confirm('Delete this private browser workspace, including saved homes, your brief and enquiry history? This cannot be undone.')) return;
@@ -350,10 +349,11 @@ export function Sakan() {
       setCompare(freshWorkspace.compare);
       setEnquiries(freshWorkspace.enquiries);
       setMatches([]);
+      setMatchedKey('');
       setHidden([]);
       setUndoHidden(null);
-      setScreen('home');
-      setStep(0);
+      setScreen('questions');
+      setQKey('goal');
       setModal(null);
       setSaveState('saved');
       setWorkspaceReady(true);
@@ -369,10 +369,11 @@ export function Sakan() {
   const explainMatch = (why: string) => activeDests.length
     ? why
     : why.replace(/(?:about\s+|~)?0(?:\.0)?\s*(?:min|minutes)(?:\s+to your routine)?/gi, 'personal travel not included');
-  const rawDetailScore = chosen ? matchById.get(chosen.id) || estimateScore(chosen, draft.goal, draft.brief, activeDests) : null;
+  const chosenMatch = chosen ? matchById.get(chosen.id) : undefined;
+  const rawDetailScore = chosen ? chosenMatch || estimateScore(chosen, draft.goal, draft.brief, activeDests) : null;
   const detailScore = rawDetailScore ? { ...rawDetailScore, why: explainMatch(rawDetailScore.why) } : null;
   const detailPrincipal = chosen ? Math.max(0, chosen.price * 1.06 - draft.brief.downPayment) : 0;
-  const detailMonthlyLoan = detailPrincipal * (.0525 / 12) / (1 - Math.pow(1 + .0525 / 12, -240));
+  const detailMonthlyLoan = monthlyLoan(detailPrincipal);
   const detailAnnualOperating = chosen ? chosen.service + chosen.expenses : 0;
   const detailFinancialRows = chosen && detailScore ? draft.goal === 'rent' ? <>
     <div className="sakan-breakdown-row"><span>Annual rent</span><strong>{formatAED(chosen.rent)}</strong></div>
@@ -395,8 +396,6 @@ export function Sakan() {
     <div className="sakan-breakdown-row"><span>Sample net yield · all-in acquisition costs</span><strong>{detailScore.netYield.toFixed(1)}%</strong></div>
     <div className="sakan-breakdown-row"><span>Downside lens · {draft.brief.riskScenario}</span><strong>{detailScore.downside.toFixed(1)} / 10</strong></div>
   </> : null;
-  const currencyInput = (value: number, set: (next: number) => void, stepSize = 5000) =>
-    <input className="sakan-input" type="number" min="0" step={stepSize} value={value} onChange={(event) => set(Math.max(0, Number(event.target.value) || 0))} />;
   const openEnquiry = (listing: Listing) => {
     setSelected(listing.id);
     setConsent(false);
@@ -416,7 +415,7 @@ export function Sakan() {
     const validPhone = /^\+?[0-9 ()-]{7,20}$/.test(contact) && (contact.match(/\d/g)?.length || 0) >= 7;
     if (!validEmail && !validPhone) { setError('Enter a valid email address or phone number.'); return; }
     if (!enquiryMessage.trim()) { setError('Write a message before submitting.'); return; }
-    if (!consent) { setError('Confirm that this enquiry is stored in Sakan and not forwarded.'); return; }
+    if (!consent) { setError('Confirm that this enquiry is stored in Realmax and not forwarded.'); return; }
     const input: SakanEnquiryInput = {
       listingId: chosen.id, name: enquiryName.trim(), contact, message: enquiryMessage.trim(),
       consent: true, requestId: enquiryRequestIdRef.current || crypto.randomUUID(),
@@ -431,102 +430,191 @@ export function Sakan() {
     } catch (submitError) { setError(errorText(submitError)); }
     finally { setEnquiryBusy(false); }
   };
+  const openDetail = (id: string) => { setSelected(id); setScreen('detail'); };
 
-  const goalSelector = <section className="sakan-goal-panel" aria-label="Choose your home goal">
-    <h2>What are you looking for?</h2>
-    <div className="sakan-goals">{(['rent', 'live', 'invest'] as Goal[]).map((goal, index) => {
-      const Icon = index === 0 ? Home : index === 1 ? Heart : Landmark;
-      return <button key={goal} onClick={() => changeGoal(goal)} className={`sakan-goal${draft.goal === goal ? ' active' : ''}`} aria-pressed={draft.goal === goal}>
-        <span className="sakan-goal-icon"><Icon size={18} /></span><span><strong>{goalCopy[goal].title}</strong><small>{goalCopy[goal].sub}</small></span>
-        {draft.goal === goal && <Check size={15} className="goal-check" />}
-      </button>;
-    })}</div>
-  </section>;
+  // ---------- Question content ----------
+  const b = draft.brief;
+  const moneyInvalid = error !== '' && current === 'money';
+  const qText: Record<QKey, { kicker: string; title: string; sub: string }> = {
+    goal: { kicker: 'Let us start with the story', title: 'What brings you to Realmax?', sub: 'Pick one. You can change it later without losing your other answers.' },
+    use: { kicker: 'Investor brief', title: 'Will you ever live in it yourself?', sub: 'A pure investment can skip personal travel entirely.' },
+    places: { kicker: 'The places in your week', title: 'Where does your life happen?', sub: 'Add work, school, prayer or sport. Optional, but it makes travel tradeoffs real. Only supported sample places are available.' },
+    rhythm: { kicker: 'Your weekly rhythm', title: 'How often, and how far?', sub: 'A daily commute and a weekly class are not the same priority. Required places become hard travel limits.' },
+    money: {
+      kicker: 'The numbers',
+      title: draft.goal === 'rent' ? 'What can you spend on rent?' : draft.goal === 'live' ? 'What can you put toward buying?' : 'How much capital is in play?',
+      sub: 'These are hard boundaries. Homes above them will not appear, and we never quietly raise them.',
+    },
+    strategy: { kicker: 'Investor lens', title: 'What should this investment do?', sub: 'Strategy shapes the ranking, not the boundaries.' },
+    risk: { kicker: 'Stress test', title: 'How hard should we push the numbers?', sub: 'Sample net yield is after vacancy, service and operating costs, on all-in price including 6% acquisition costs.' },
+    home: { kicker: 'The home itself', title: 'What kind of place?', sub: 'Bedrooms, type and readiness are hard filters.' },
+    comfort: { kicker: 'Finishing touches', title: 'Nice-to-haves, and what matters most', sub: 'Furnishing and parking are preferences that nudge ranking. They never remove homes.' },
+    review: { kicker: 'Before the reveal', title: 'Your brief, at a glance', sub: 'Check your answers. Edit anything, then let us find your matches.' },
+  };
 
-  const destinationsStep = <div className="journey-content">
-    <p className="sakan-help">Start with the places your week revolves around. We use these to compare sample travel times—not to track you.</p>
-    {isInvest && <label className="sakan-checkline"><input type="checkbox" checked={draft.personalUse} onChange={(event) => { updateDraft({ personalUse: event.target.checked }); setStep(0); }} />I may use this investment as a home later, so include personal destinations.</label>}
-    {!activeDests.length ? <div className="sakan-empty"><MapPin size={22} /><h3>No destinations yet</h3><p>{isInvest ? 'A pure investment brief can skip personal travel. Add personal-use places if you want them included.' : 'Add places that shape your week to see practical travel tradeoffs.'}</p></div>
-      : <div className="sakan-destinations">{activeDests.map((destination) => {
+  const placesQuestion = <div className="rx-q-body">
+    {draft.destinations.length === 0 ? <div className="rx-empty-inline"><MapPin size={20} /><div><strong>No places yet</strong><span>That is fine. Skip ahead and travel will not affect ranking, or add a place below.</span></div></div>
+      : <div className="sakan-destinations">{draft.destinations.map((destination) => {
         const Icon = iconFor(destination.kind);
-        return <div className="sakan-destination" key={destination.id}>
+        return <div className="sakan-destination" key={destination.id} data-testid={`row-destination-${destination.id}`}>
           <span className="sakan-pin"><Icon size={16} /></span><div><div className="sakan-dest-name">{destination.label}</div><div className="sakan-dest-meta">{destination.place} · {destination.frequency} {destination.frequency === 1 ? 'day' : 'days'}/week · {destination.mode}</div></div>
-          <span className="sakan-badge">{destination.required ? 'Required' : 'Preferred'}</span>
-          <div className="sakan-dest-actions"><button className="sakan-icon-button" aria-label={`Edit ${destination.label}`} onClick={() => openDestination(destination)}><Pencil size={14} /></button><button className="sakan-icon-button" aria-label={`Remove ${destination.label}`} onClick={() => updateDraft({ destinations: draft.destinations.filter((item) => item.id !== destination.id) })}><Trash2 size={14} /></button></div>
+          <span className="sakan-badge">{destination.required ? `Max ${destination.maxMinutes} min` : 'Preferred'}</span>
+          <div className="sakan-dest-actions"><button className="sakan-icon-button" aria-label={`Edit ${destination.label}`} onClick={() => openDestination(destination)}><Pencil size={14} /></button><button className="sakan-icon-button" aria-label={`Remove ${destination.label}`} data-testid={`button-remove-destination-${destination.id}`} onClick={() => updateDraft({ destinations: draft.destinations.filter((item) => item.id !== destination.id) })}><Trash2 size={14} /></button></div>
         </div>;
       })}</div>}
-    {(!isInvest || draft.personalUse) && <button className="sakan-add-dest" onClick={() => openDestination()}><Plus size={15} /> Add a place in your life</button>}
-    <div className="sakan-section-title">Common starting points</div>
-    <div className="sakan-toggle-row">{['Work', 'Partner work', 'School', 'Worship', 'Sport', 'Custom'].map((kind) => <button key={kind} className="sakan-chip" onClick={() => openDestination({ id: '', kind, label: kind === 'Work' ? 'My work' : kind, place: places[kind === 'School' ? 2 : kind === 'Worship' ? 3 : kind === 'Sport' ? 6 : 0] || fallbackPlaces[0], address: '', frequency: kind === 'Worship' ? 1 : 5, mode: 'car', maxMinutes: 30, required: false, preferred: true })}><Plus size={11} /> {kind}</button>)}</div>
+    <div className="sakan-section-title">Add a place</div>
+    <div className="sakan-toggle-row">{['Work', 'Partner work', 'School', 'Worship', 'Sport', 'Custom'].map((kind) => <button key={kind} className="sakan-chip" data-testid={`button-add-${kind.toLowerCase().replace(/\W/g, '-')}`} onClick={() => openDestination({ id: '', kind, label: kind === 'Work' ? 'My work' : kind, place: places[kind === 'School' ? 2 : kind === 'Worship' ? 3 : kind === 'Sport' ? 6 : 0] || places[0] || fallbackPlaces[0], address: '', frequency: kind === 'Worship' ? 1 : 5, mode: 'car', maxMinutes: 30, required: false, preferred: true })}><Plus size={11} /> {kind}</button>)}</div>
+    {draft.destinations.length > 0 && <DubaiMap destinations={draft.destinations} />}
   </div>;
-  const routineStep = <div className="journey-content">
-    <p className="sakan-help">A weekday commute and a weekly class are not the same priority. Tune how much each place matters.</p>
-    {!activeDests.length ? <div className="sakan-empty"><h3>Nothing to schedule</h3><p>Your investor results are ranked on the assumptions you choose. Personal destinations are currently switched off.</p><button className="sakan-secondary" onClick={() => setStep(0)}>Add personal-use places</button></div>
-      : <div className="sakan-destinations">{activeDests.map((destination) => <div className="sakan-destination" key={destination.id}><span className="sakan-pin"><Clock3 size={15} /></span><div><div className="sakan-dest-name">{destination.label}</div><div className="sakan-dest-meta">{destination.place}</div></div>
-        <select aria-label={`Days per week at ${destination.label}`} className="sakan-select frequency-select" value={destination.frequency} onChange={(event) => updateDraft({ destinations: draft.destinations.map((item) => item.id === destination.id ? { ...item, frequency: Number(event.target.value) } : item) })}>{[1, 2, 3, 4, 5, 6, 7].map((count) => <option value={count} key={count}>{count} {count === 1 ? 'day' : 'days'} / week</option>)}</select>
-        <button className="sakan-icon-button" aria-label={`Edit travel priority for ${destination.label}`} onClick={() => openDestination(destination)}><Pencil size={14} /></button>
-      </div>)}</div>}
-    <div className="sakan-section-title">How should travel feel?</div><div className="sakan-toggle-row">{['Easy weekday', 'Balanced week', 'Fewer compromises'].map((label, i) => <button key={label} className={`sakan-chip${draft.priority === (i === 0 ? 'commute' : i === 1 ? 'balanced' : 'cost') ? ' active' : ''}`} onClick={() => updateDraft({ priority: i === 0 ? 'commute' : i === 1 ? 'balanced' : 'cost' })}>{label}</button>)}</div>
+
+  const rhythmQuestion = <div className="rx-q-body">
+    <div className="sakan-destinations">{draft.destinations.map((destination) => <div className="sakan-destination rx-rhythm" key={destination.id}>
+      <span className="sakan-pin"><Clock3 size={15} /></span>
+      <div><div className="sakan-dest-name">{destination.label}</div><div className="sakan-dest-meta">{destination.place} · {destination.mode}</div></div>
+      <select aria-label={`Days per week at ${destination.label}`} className="sakan-select" value={destination.frequency} onChange={(event) => updateDraft({ destinations: draft.destinations.map((item) => item.id === destination.id ? { ...item, frequency: Number(event.target.value) } : item) })}>{[1, 2, 3, 4, 5, 6, 7].map((count) => <option value={count} key={count}>{count} {count === 1 ? 'day' : 'days'} / week</option>)}</select>
+      <div className="rx-seg" role="radiogroup" aria-label={`How strict is ${destination.label}`}>
+        <button role="radio" aria-checked={destination.required} className={destination.required ? 'on' : ''} onClick={() => updateDraft({ destinations: draft.destinations.map((item) => item.id === destination.id ? { ...item, required: true, preferred: false } : item) })}>Required · {destination.maxMinutes} min</button>
+        <button role="radio" aria-checked={!destination.required} className={!destination.required ? 'on' : ''} onClick={() => updateDraft({ destinations: draft.destinations.map((item) => item.id === destination.id ? { ...item, required: false, preferred: true } : item) })}>Preferred</button>
+      </div>
+      <button className="sakan-icon-button" aria-label={`Edit travel limit for ${destination.label}`} onClick={() => openDestination(destination)}><Pencil size={14} /></button>
+    </div>)}</div>
     <div className="sakan-sample-banner"><Info size={14} />Travel times are invented sample assumptions by area and mode. They are not live traffic or route guidance.</div>
   </div>;
 
-  const financeStep = <div className="journey-content">
+  const moneyQuestion = <div className="rx-q-body">
     {draft.goal === 'rent' ? <>
-      <div className="sakan-sample-banner"><Wallet size={14} />Your rent limit is annual rent. The upfront boundary is an illustrative 10% deposit and agency/admin reserve only; it excludes the first rent cheque and is not total move-in cash.</div>
-      <div className="sakan-form-grid"><div className="sakan-field"><label>Annual rent ceiling (AED)</label>{currencyInput(draft.brief.rentBudget, (value) => updateBrief('rentBudget', value), 1000)}<small>Listings above this amount will be filtered out.</small></div><div className="sakan-field"><label>Upfront amount available (AED)</label>{currencyInput(draft.brief.rentUpfront, (value) => updateBrief('rentUpfront', value), 1000)}<small>Illustrative deposit, agency and move-in planning.</small></div></div>
-      <div className="sakan-section-title">Illustrative upfront boundary · excludes first rent cheque</div><div className="sakan-breakdown"><div className="sakan-breakdown-row"><span>Security deposit planning (5%)</span><strong>{formatAED(draft.brief.rentBudget * .05)}</strong></div><div className="sakan-breakdown-row"><span>Agency and admin planning (5%)</span><strong>{formatAED(draft.brief.rentBudget * .05)}</strong></div><div className="sakan-breakdown-row"><span>Remaining amount under your upfront limit</span><strong>{formatAED(Math.max(0, draft.brief.rentUpfront - draft.brief.rentBudget * .1))}</strong></div></div>
+      <div className="rx-money-grid">
+        <MoneyField id="rent-budget" label="Annual rent ceiling" hint="Listings above this will be filtered out." value={b.rentBudget} step={1000} invalid={moneyInvalid && !(b.rentBudget > 0)} onChange={(value) => updateBrief('rentBudget', value)} />
+        <MoneyField id="rent-upfront" label="Upfront amount available" hint="Illustrative 10% deposit + agency/admin reserve. Excludes the first rent cheque." value={b.rentUpfront} step={1000} invalid={moneyInvalid && !(b.rentUpfront > 0)} onChange={(value) => updateBrief('rentUpfront', value)} />
+      </div>
+      <div className="sakan-breakdown"><div className="sakan-breakdown-row"><span>Deposit + agency/admin planning at your ceiling (10%)</span><strong>{formatAED(b.rentBudget * .1)}</strong></div><div className="sakan-breakdown-row"><span>Remaining under your upfront limit</span><strong>{formatAED(Math.max(0, b.rentUpfront - b.rentBudget * .1))}</strong></div></div>
     </> : draft.goal === 'live' ? <>
-      <div className="sakan-sample-banner"><Wallet size={14} />Planning estimates only. Acquisition costs are illustrative at 6%. Financing, where needed, uses an illustrative 20-year loan at 5.25%; sufficient cash can mean no financed amount.</div>
-      <div className="sakan-form-grid"><div className="sakan-field"><label>Purchase price ceiling (AED)</label>{currencyInput(draft.brief.buyBudget, (value) => updateBrief('buyBudget', value), 10000)}<small>Properties above the ceiling will not appear.</small></div><div className="sakan-field"><label>Cash available now (AED)</label>{currencyInput(draft.brief.downPayment, (value) => updateBrief('downPayment', value), 10000)}</div><div className="sakan-field"><label>Comfortable monthly payment (AED)</label>{currencyInput(draft.brief.monthlyPayment, (value) => updateBrief('monthlyPayment', value), 500)}<small>Sample 20-year mortgage at 5.25% only for comparison.</small></div><div className="sakan-field"><label>Planning reserve for fees</label><input className="sakan-input" value="6% · sample" readOnly /></div></div>
-      <div className="sakan-section-title">Monthly comfort includes illustrative operating costs</div><div className="sakan-breakdown"><div className="sakan-breakdown-row"><span>Sample acquisition cost reserve (6%)</span><strong>{formatAED(draft.brief.buyBudget * .06)}</strong></div><div className="sakan-breakdown-row"><span>Minimum cash boundary (20% deposit + 6% acquisition costs)</span><strong>{formatAED(draft.brief.buyBudget * .26)}</strong></div><div className="sakan-breakdown-row"><span>Illustrative financed principal after cash available</span><strong>{formatAED(Math.max(0, draft.brief.buyBudget * 1.06 - draft.brief.downPayment))}</strong></div><div className="sakan-breakdown-row"><span>Sample monthly payment + typical monthly operating costs</span><strong>Varies by matched home</strong></div></div>
+      <div className="rx-money-grid three">
+        <MoneyField id="buy-budget" label="Purchase price ceiling" value={b.buyBudget} step={10000} invalid={moneyInvalid && !(b.buyBudget > 0)} onChange={(value) => updateBrief('buyBudget', value)} />
+        <MoneyField id="cash-now" label="Cash available now" hint="Must cover at least 26% of price (20% deposit + 6% costs)." value={b.downPayment} step={10000} invalid={moneyInvalid && !(b.downPayment > 0)} onChange={(value) => updateBrief('downPayment', value)} />
+        <MoneyField id="monthly" label="Comfortable monthly amount" hint="Loan + operating costs / 12." value={b.monthlyPayment} step={500} invalid={moneyInvalid && !(b.monthlyPayment > 0)} onChange={(value) => updateBrief('monthlyPayment', value)} />
+      </div>
+      <div className="sakan-breakdown"><div className="sakan-breakdown-row"><span>Minimum cash at your ceiling · 26%</span><strong>{formatAED(b.buyBudget * .26)}</strong></div><div className="sakan-breakdown-row"><span>Illustrative financed principal at ceiling · price × 1.06 − cash</span><strong>{formatAED(Math.max(0, b.buyBudget * 1.06 - b.downPayment))}</strong></div><div className="sakan-breakdown-row"><span>Illustrative monthly loan at ceiling · 20 years at 5.25%</span><strong>{formatAED(monthlyLoan(Math.max(0, b.buyBudget * 1.06 - b.downPayment)))}</strong></div></div>
     </> : <>
-      <div className="sakan-sample-banner"><Landmark size={14} />An analytical view, not a promise of returns. Sample assumptions make operating cost and downside visible.</div>
-      <div className="sakan-form-grid"><div className="sakan-field"><label>Total capital available (AED)</label>{currencyInput(draft.brief.capital, (value) => updateBrief('capital', value), 10000)}<small>Includes a 6% sample purchase-cost reserve.</small></div><div className="sakan-field"><label>Investment horizon (years)</label><input className="sakan-input" type="number" min="1" max="30" value={draft.brief.horizon} onChange={(event) => updateBrief('horizon', Math.max(1, Math.min(30, Number(event.target.value) || 1)))} /></div><div className="sakan-field"><label>Strategy lens</label><select className="sakan-select" value={draft.brief.strategy} onChange={(event) => updateBrief('strategy', event.target.value as Brief['strategy'])}><option value="income">Income first</option><option value="balanced">Balanced tradeoff</option><option value="growth">Growth potential</option></select></div><div className="sakan-field"><label>Vacancy allowance</label><select className="sakan-select" value={draft.brief.vacancy} onChange={(event) => updateBrief('vacancy', Number(event.target.value))}>{[4, 6, 10, 14].map((value) => <option value={value} key={value}>{value}% · sample assumption</option>)}</select></div><div className="sakan-field"><label>Downside scenario</label><select className="sakan-select" value={draft.brief.riskScenario} onChange={(event) => updateBrief('riskScenario', event.target.value as Brief['riskScenario'])}><option value="steady">Steady</option><option value="soft">Soft market</option><option value="stress">Stress case</option></select></div><div className="sakan-field"><label>Debt service</label><input className="sakan-input" value="Not assumed in net yield" readOnly /><small>Debt service is separate from operating-cost net yield.</small></div></div>
+      <div className="rx-money-grid">
+        <MoneyField id="capital" label="Total capital available" hint="Must cover the all-in price including a 6% sample acquisition reserve." value={b.capital} step={10000} invalid={moneyInvalid && !(b.capital > 0)} onChange={(value) => updateBrief('capital', value)} />
+      </div>
+      <div className="sakan-sample-banner"><Landmark size={14} />An analytical view, not a promise of returns. Debt service is not assumed in net yield.</div>
     </>}
   </div>;
-  const preferencesStep = <div className="journey-content">
-    <p className="sakan-help">Set a few real boundaries. Hard requirements filter homes out; preferences help you compare what remains.</p>
-    <div className="sakan-form-grid"><div className="sakan-field"><label>At least this many bedrooms</label><select className="sakan-select" value={draft.brief.beds} onChange={(event) => updateBrief('beds', Number(event.target.value))}>{[0, 1, 2, 3].map((value) => <option value={value} key={value}>{value === 0 ? 'Studio or more' : `${value}+ bedrooms`}</option>)}</select></div><div className="sakan-field"><label>Home type</label><select className="sakan-select" value={draft.brief.type} onChange={(event) => updateBrief('type', event.target.value)}><option value="any">Any home type</option><option value="Apartment">Apartment</option><option value="Townhouse">Townhouse</option></select></div><div className="sakan-field"><label>Availability · required</label><select className="sakan-select" value={draft.brief.ready} onChange={(event) => updateBrief('ready', event.target.value)}><option value="any">Ready or off-plan</option><option value="ready">Ready only</option><option value="offplan">Off-plan only</option></select></div><div className="sakan-field"><label>Furnishing · preferred</label><select className="sakan-select" value={draft.brief.furnished} onChange={(event) => updateBrief('furnished', event.target.value)}><option value="any">No preference</option><option value="yes">Furnished</option><option value="no">Unfurnished</option></select></div><div className="sakan-field"><label>Parking · preferred</label><select className="sakan-select" value={draft.brief.parking} onChange={(event) => updateBrief('parking', event.target.value)}><option value="any">No preference</option><option value="yes">Parking included</option></select></div></div>
-    <div className="sakan-section-title">Your priorities</div><div className="sakan-toggle-row">{[{ key: 'balanced', label: 'Balanced' }, { key: 'commute', label: 'Closer to routine' }, { key: 'cost', label: 'Lower cost' }, { key: 'risk', label: 'Lower downside' }].map((item) => <button key={item.key} className={`sakan-chip${draft.priority === item.key ? ' active' : ''}`} onClick={() => changePriority(item.key as Priority)}>{item.label}</button>)}</div>
-  </div>;
-  const reviewStep = <div className="journey-content">
-    <div className="sakan-sample-banner"><BadgeCheck size={14} />Your brief and saved homes are stored in a private server-side browser workspace. Destinations are sent only to calculate sample rankings, not shared with households or agents.</div>
-    <div className="sakan-review-grid"><div className="sakan-card review-card"><div className="sakan-eyebrow">Your goal</div><strong>{goalCopy[draft.goal].title}</strong><button className="sakan-textbutton" onClick={() => setStep(0)}>Edit journey</button></div><div className="sakan-card review-card"><div className="sakan-eyebrow">Budget limit</div><strong>{formatAED(draft.goal === 'rent' ? draft.brief.rentBudget : draft.goal === 'live' ? draft.brief.buyBudget : draft.brief.capital)}{draft.goal === 'rent' ? ' / year' : ''}</strong><button className="sakan-textbutton" onClick={() => setStep(isInvest && !draft.personalUse ? 0 : 2)}>Edit money</button></div><div className="sakan-card review-card"><div className="sakan-eyebrow">Home boundaries</div><strong>{draft.brief.beds ? `${draft.brief.beds}+ bedrooms` : 'Studio+'} · {draft.brief.type === 'any' ? 'any type' : draft.brief.type}</strong><button className="sakan-textbutton" onClick={() => setStep(isInvest && !draft.personalUse ? 1 : 3)}>Edit preferences</button></div><div className="sakan-card review-card"><div className="sakan-eyebrow">Weekly context</div><strong>{activeDests.length ? `${activeDests.length} destinations · ${draft.priority} priority` : 'No personal travel included'}</strong><button className="sakan-textbutton" onClick={() => { if (isInvest && !draft.personalUse) updateDraft({ personalUse: true }); setStep(0); }}>Edit places</button></div></div>
-    {activeDests.length > 0 && <DubaiMap destinations={activeDests} />}
-    {isInvest && <p className="sakan-note">Horizon {draft.brief.horizon} years · {draft.brief.strategy} · {draft.brief.vacancy}% vacancy planning · {draft.brief.riskScenario} downside case</p>}
+
+  const renderQuestion = () => {
+    switch (current) {
+      case 'goal': return <Choice label="Home goal" value={draft.goal} onChange={changeGoal} options={[
+        { value: 'rent', label: goalCopy.rent.title, sub: goalCopy.rent.sub, icon: Home },
+        { value: 'live', label: goalCopy.live.title, sub: goalCopy.live.sub, icon: Heart },
+        { value: 'invest', label: goalCopy.invest.title, sub: goalCopy.invest.sub, icon: Landmark },
+      ]} />;
+      case 'use': return <Choice label="Personal use" value={draft.personalUse ? 'yes' : 'no'} onChange={(value) => updateDraft({ personalUse: value === 'yes' })} options={[
+        { value: 'no', label: 'No, purely an investment', sub: 'Skip personal places. Rank on returns, costs and downside.', icon: Landmark },
+        { value: 'yes', label: 'Maybe, include my places', sub: 'Factor in travel to the places in your week.', icon: MapPin },
+      ]} />;
+      case 'places': return placesQuestion;
+      case 'rhythm': return rhythmQuestion;
+      case 'money': return moneyQuestion;
+      case 'strategy': return <div className="rx-q-body">
+        <Choice label="Strategy lens" value={b.strategy} onChange={(value) => updateBrief('strategy', value)} options={[
+          { value: 'income', label: 'Income first', sub: 'Weight sample net yield most.' },
+          { value: 'balanced', label: 'Balanced tradeoff', sub: 'Yield and downside together.' },
+          { value: 'growth', label: 'Growth potential', sub: 'Favour lower-risk sample areas.' },
+        ]} />
+        <div className="rx-horizon"><label htmlFor="horizon">Investment horizon</label><div className="rx-horizon-row"><input id="horizon" data-testid="input-horizon" type="range" min="1" max="30" value={b.horizon} onChange={(event) => updateBrief('horizon', Number(event.target.value))} /><strong>{b.horizon} {b.horizon === 1 ? 'year' : 'years'}</strong></div><small>Under 5 years adds a downside penalty in the sample model.</small></div>
+      </div>;
+      case 'risk': return <div className="rx-q-body">
+        <div className="sakan-section-title">Downside scenario</div>
+        <Choice compact label="Downside scenario" value={b.riskScenario} onChange={(value) => updateBrief('riskScenario', value)} options={[
+          { value: 'steady', label: 'Steady', sub: 'Mild sample risk weighting.' },
+          { value: 'soft', label: 'Soft market', sub: 'Moderate stress on risk.' },
+          { value: 'stress', label: 'Stress case', sub: 'Heaviest sample penalty.' },
+        ]} />
+        <div className="sakan-section-title">Vacancy allowance</div>
+        <Choice compact label="Vacancy allowance" value={b.vacancy} onChange={(value) => updateBrief('vacancy', value)} options={[4, 6, 10, 14].map((value) => ({ value, label: `${value}%`, sub: 'sample assumption' }))} />
+      </div>;
+      case 'home': return <div className="rx-q-body">
+        <div className="sakan-section-title">Bedrooms, at least</div>
+        <Choice compact label="Minimum bedrooms" value={b.beds} onChange={(value) => updateBrief('beds', value)} options={[0, 1, 2, 3].map((value) => ({ value, label: value === 0 ? 'Studio+' : `${value}+ bed` }))} />
+        <div className="sakan-section-title">Home type</div>
+        <Choice compact label="Home type" value={b.type} onChange={(value) => updateBrief('type', value)} options={[{ value: 'any', label: 'Any type' }, { value: 'Apartment', label: 'Apartment' }, { value: 'Townhouse', label: 'Townhouse' }]} />
+        <div className="sakan-section-title">Readiness</div>
+        <Choice compact label="Readiness" value={b.ready} onChange={(value) => updateBrief('ready', value)} options={[{ value: 'any', label: 'Ready or off-plan' }, { value: 'ready', label: 'Ready only' }, { value: 'offplan', label: 'Off-plan only' }]} />
+      </div>;
+      case 'comfort': return <div className="rx-q-body">
+        <div className="sakan-section-title">Furnishing · preference</div>
+        <Choice compact label="Furnishing" value={b.furnished} onChange={(value) => updateBrief('furnished', value)} options={[{ value: 'any', label: 'No preference' }, { value: 'yes', label: 'Furnished' }, { value: 'no', label: 'Unfurnished' }]} />
+        <div className="sakan-section-title">Parking · preference</div>
+        <Choice compact label="Parking" value={b.parking} onChange={(value) => updateBrief('parking', value)} options={[{ value: 'any', label: 'No preference' }, { value: 'yes', label: 'Parking included' }]} />
+        <div className="sakan-section-title">What should rank highest?</div>
+        <Choice compact label="Ranking priority" value={draft.priority} onChange={(value) => updateDraft({ priority: value })} options={(['balanced', 'commute', 'cost', 'risk'] as Priority[]).map((value) => ({ value, label: priorityLabel[value] }))} />
+      </div>;
+      case 'review': {
+        const budget = draft.goal === 'rent' ? `${formatAED(b.rentBudget)} / year · ${formatAED(b.rentUpfront)} upfront` : draft.goal === 'live' ? `${formatAED(b.buyBudget)} · ${formatAED(b.downPayment)} cash · ${formatAED(b.monthlyPayment)}/mo` : formatAED(b.capital);
+        const items: Array<[string, string, QKey]> = [
+          ['Goal', goalCopy[draft.goal].title + (isInvest ? draft.personalUse ? ' · may live in it' : ' · pure investment' : ''), 'goal'],
+          ...(!isInvest || draft.personalUse ? [['Places', draft.destinations.length ? draft.destinations.map((item) => item.label).join(', ') : 'Skipped · travel not included', 'places'] as [string, string, QKey]] : []),
+          ['Budget', budget, 'money'],
+          ...(isInvest ? [['Investor lens', `${b.strategy} · ${b.horizon} years · ${b.vacancy}% vacancy · ${b.riskScenario}`, 'strategy'] as [string, string, QKey]] : []),
+          ['Home', `${b.beds ? `${b.beds}+ bed` : 'Studio+'} · ${b.type === 'any' ? 'any type' : b.type} · ${b.ready === 'any' ? 'ready or off-plan' : b.ready === 'ready' ? 'ready only' : 'off-plan only'}`, 'home'],
+          ['Preferences', `Furnishing ${b.furnished === 'any' ? 'any' : b.furnished === 'yes' ? 'furnished' : 'unfurnished'} · parking ${b.parking === 'yes' ? 'wanted' : 'any'} · ${priorityLabel[draft.priority]}`, 'comfort'],
+        ];
+        return <div className="rx-q-body">
+          <div className="rx-review">{items.map(([label, value, key]) => <div className="rx-review-item" key={label}><span>{label}</span><strong>{value}</strong><button className="sakan-textbutton" data-testid={`button-edit-${key}`} onClick={() => { setError(''); setQKey(key); }}><Pencil size={12} /> Edit</button></div>)}</div>
+          <div className="sakan-sample-banner"><BadgeCheck size={14} />Your brief is stored in a private server-side browser workspace. Places are only used to calculate sample rankings.</div>
+          {rankingError && <div className="sakan-error" role="alert">Could not calculate matches. {rankingError}</div>}
+        </div>;
+      }
+    }
+  };
+
+  const questionView = <div className="rx-question" key={current}>
+    <div className="rx-question-bg" aria-hidden="true"><img src={imageUrl} alt="" /></div>
+    <div className="rx-question-inner">
+      <div className="rx-progress" aria-label={`Question ${qIndex + 1} of ${questionKeys.length}`}>
+        <div className="rx-progress-label"><span>{String(qIndex + 1).padStart(2, '0')}</span> / {String(questionKeys.length).padStart(2, '0')} · {qText[current].kicker}</div>
+        <div className="rx-progress-bar">{questionKeys.map((key, index) => <button key={key} type="button" aria-label={`Go to question ${index + 1}`} disabled={index >= qIndex} className={index < qIndex ? 'done' : index === qIndex ? 'now' : ''} onClick={() => { setError(''); setQKey(key); }} />)}</div>
+      </div>
+      <h1 className="rx-q-title" data-testid="text-question-title">{qText[current].title}</h1>
+      <p className="rx-q-sub">{qText[current].sub}</p>
+      {renderQuestion()}
+      {error && current !== 'review' && <div className="sakan-error" role="alert">{error}</div>}
+      <div className="rx-q-actions">
+        <button className="sakan-secondary" data-testid="button-back" disabled={qIndex === 0 && !resultsFresh} onClick={goBack}><ArrowLeft size={15} /> {qIndex === 0 && resultsFresh ? 'Back to matches' : 'Back'}</button>
+        {current === 'review'
+          ? <button className="rx-cta" data-testid="button-show-matches" disabled={rankingBusy || catalogState !== 'ready'} onClick={() => void calculate(hidden, draft.priority, true)}>{rankingBusy ? <><span className="rx-dot" /> Finding your matches</> : rankingError ? <><RotateCcw size={16} /> Retry matching</> : <><Play size={16} fill="currentColor" /> Show my matches</>}</button>
+          : <button className="rx-cta" data-testid="button-next" onClick={goNext}>{current === 'places' && draft.destinations.length === 0 ? 'Skip places' : 'Next'} <ArrowRight size={16} /></button>}
+      </div>
+    </div>
   </div>;
 
-  const goStep = async (direction: number) => {
-    if (direction < 0) { setStep(Math.max(0, step + direction)); return; }
-    if (activeStep === stepCount - 1) { await calculate(); return; }
-    setStep(Math.min(stepCount - 1, step + direction));
-    setError('');
-  };
-  const journeyPane = () => {
-    let content = destinationsStep;
-    if (isInvest && !draft.personalUse) content = activeStep === 0 ? financeStep : activeStep === 1 ? preferencesStep : reviewStep;
-    else if (activeStep === 1) content = routineStep;
-    else if (activeStep === 2) content = financeStep;
-    else if (activeStep === 3) content = preferencesStep;
-    else if (activeStep === 4) content = reviewStep;
-    return <div className="sakan-card sakan-journey">
-      <div className="sakan-step-head"><div><div className="sakan-eyebrow">{isInvest && !draft.personalUse ? 'Investor brief' : 'Your home brief'} · Step {activeStep + 1} of {stepCount}</div><h2>{stepTitles[activeStep]}</h2></div><div className="step-progress"><span>{Math.round((activeStep + 1) / stepCount * 100)}% shaped</span><div className="sakan-progress" aria-label={`Step ${activeStep + 1} of ${stepCount}`}>{stepTitles.map((title, index) => <i className={index <= activeStep ? 'done' : ''} key={title} />)}</div></div></div>
-      {content}
-      {error && <div className="sakan-error" role="alert">{error}</div>}
-      <div className="sakan-step-actions"><button className="sakan-secondary" onClick={() => activeStep === 0 ? setScreen('home') : void goStep(-1)}><ArrowLeft size={14} /> Back</button><button className="sakan-primary" disabled={rankingBusy || catalogState !== 'ready'} onClick={() => void goStep(1)}>{activeStep === stepCount - 1 ? 'See sample matches' : 'Continue'}<ArrowRight size={14} /></button></div>
-    </div>;
-  };
-
-  const listingCard = (listing: Listing, rank: number) => {
-    const result = matchById.get(listing.id) || estimateScore(listing, draft.goal, draft.brief, activeDests);
+  // ---------- Results ----------
+  const poster = (listing: Listing, opts: { rank?: number; inMatches: boolean }) => {
+    const result = matchById.get(listing.id);
     const price = draft.goal === 'rent' ? listing.rent : listing.price;
-    return <article className="sakan-card sakan-listing" key={listing.id}>
-      <div className="sakan-listing-image"><img src={imageUrl} alt={`Illustrative Dubai neighbourhood home, not a photo of ${listing.name}`} /><span className="sakan-list-badge">{rank === 0 ? 'Closest fit' : listing.ready ? 'Ready' : 'Off-plan'}</span></div>
-      <div className="sakan-listing-body"><h3>{listing.name}</h3><div className="sakan-listing-loc"><MapPin size={11} />{listing.area}</div>
-        <div className="sakan-listing-price"><strong>{formatAED(price)}</strong><span>{draft.goal === 'rent' ? 'per year' : 'purchase'}{draft.goal === 'invest' ? ` · ${result.netYield.toFixed(1)}% sample net yield` : ''}</span></div>
-        <div className="sakan-listing-specs"><span><BedDouble size={12} />{listing.beds} bed</span><span>{listing.sqft.toLocaleString()} sqft</span><span><CarFront size={12} />{listing.parking ? 'Parking' : 'No parking'}</span></div>
-        <div className="sakan-fit">{explainMatch(result.why)}</div>{draft.goal === 'invest' && <div className="sakan-listing-loc costs">Operating costs {formatAED(listing.service + listing.expenses)} / yr · vacancy {draft.brief.vacancy}% assumed</div>}
-        <div className="sakan-card-buttons"><button className="sakan-secondary" onClick={() => { setSelected(listing.id); setScreen('detail'); }}><Eye size={13} />Details</button><button className={`sakan-secondary${saved.includes(listing.id) ? ' active' : ''}`} aria-pressed={saved.includes(listing.id)} onClick={() => void toggleSave(listing.id)}><Bookmark size={13} />{saved.includes(listing.id) ? 'Saved' : 'Save'}</button><button className={`sakan-secondary${compare.includes(listing.id) ? ' active' : ''}`} aria-pressed={compare.includes(listing.id)} onClick={() => void toggleCompare(listing.id)}><Scale size={13} />{compare.includes(listing.id) ? 'Added' : 'Compare'}</button><button className="sakan-icon-button" aria-label={`Hide ${listing.name}`} onClick={() => hideListing(listing.id)}><X size={14} /></button></div>
+    const style = posterStyle(listing.id);
+    const isSaved = saved.includes(listing.id);
+    return <article key={listing.id} className={`rx-poster${opts.rank !== undefined ? ' ranked' : ''}`} data-testid={`card-listing-${listing.id}`}>
+      {opts.rank !== undefined && <span className="rx-rank" aria-hidden="true">{opts.rank + 1}</span>}
+      <div className="rx-poster-card">
+        <button className="rx-poster-media" onClick={() => openDetail(listing.id)} aria-label={`View details for ${listing.name}`}>
+          <img src={imageUrl} alt="" style={style.img} /><span className="rx-tint" style={style.tint} />
+          <span className="rx-tag">{listing.ready ? 'Ready' : 'Off-plan'}</span>
+          <span className="rx-poster-title">{listing.name}</span>
+        </button>
+        <div className="rx-poster-body">
+          <div className="rx-meta">{listing.area} · {listing.beds === 0 ? 'Studio' : `${listing.beds} bed`} · {listing.type}</div>
+          <div className="rx-price">{formatAED(price)}<small>{draft.goal === 'rent' ? ' / year' : draft.goal === 'invest' && result ? ` · ${result.netYield.toFixed(1)}% sample net` : ''}</small></div>
+          {opts.inMatches && result ? <p className="rx-why">{explainMatch(result.why)}</p> : <p className="rx-why muted">Saved earlier · not in your current matches</p>}
+          <div className="rx-actions">
+            <button className={isSaved ? 'on' : ''} aria-pressed={isSaved} aria-label={isSaved ? `Remove ${listing.name} from My list` : `Save ${listing.name}`} data-testid={`button-save-${listing.id}`} onClick={() => void toggleSave(listing.id)}>{isSaved ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}</button>
+            <button className={compare.includes(listing.id) ? 'on' : ''} aria-pressed={compare.includes(listing.id)} aria-label={`Compare ${listing.name}`} data-testid={`button-compare-${listing.id}`} onClick={() => void toggleCompare(listing.id)}><Scale size={15} /></button>
+            {opts.inMatches && <button aria-label={`Hide ${listing.name}`} data-testid={`button-hide-${listing.id}`} onClick={() => hideListing(listing.id)}><EyeOff size={15} /></button>}
+            <button className="rx-more" onClick={() => openDetail(listing.id)} data-testid={`button-details-${listing.id}`}>Details <ArrowRight size={13} /></button>
+          </div>
+        </div>
       </div>
     </article>;
   };
@@ -536,45 +624,97 @@ export function Sakan() {
     matches.forEach((match) => groups.set(match.listing.area, [...(groups.get(match.listing.area) || []), match]));
     return [...groups.entries()];
   }, [matches]);
-  const resultView = <div className="sakan-results">
-    <div className="sakan-result-head"><div><div className="sakan-eyebrow">A considered shortlist · sample data</div><h2>Homes around your life.</h2><p>{matches.length} sample {matches.length === 1 ? 'match' : 'matches'} · ranked for {goalCopy[draft.goal].title.toLowerCase()}</p>{calculatedAt && <small className="sakan-note">Ranking calculated {new Date(calculatedAt).toLocaleString()}</small>}</div>
-      <div className="sakan-result-controls"><button onClick={async () => { if (await flushBeforeLeaving()) { setScreen('home'); setStep(isInvest && !draft.personalUse ? 2 : 4); } }}><Pencil size={13} /> Edit brief</button><button onClick={() => setModal('compare')}><Scale size={13} /> Compare {compare.length}</button></div>
-    </div>
-    <div className="sakan-sample-banner"><Info size={14} />Fictional sample listings and assumptions, not live inventory or current market data. Images are illustrative. Travel times and costs are for comparing, not advice.</div>
-    <div className="sakan-priority"><div><strong>Ranking lens</strong><br /><span>{draft.priority === 'commute' ? 'Give more weight to everyday travel' : draft.priority === 'cost' ? 'Give more weight to budget headroom' : draft.priority === 'risk' ? 'Give more weight to downside' : `Balanced ${draft.goal === 'invest' ? 'return and downside' : 'cost and travel'} comparison`}</span></div><select aria-label="Choose ranking priority" value={draft.priority} onChange={(event) => changePriority(event.target.value as Priority)}><option value="balanced">Balanced</option><option value="commute">Closer to routine</option><option value="cost">Lower cost</option><option value="risk">Lower downside</option></select></div>
-    {undoHidden && <div className="sakan-sample-banner undo-banner">One sample home hidden.<button className="sakan-textbutton" onClick={undoHide}>Undo</button></div>}
-    {rankingError && <div className="sakan-error" role="alert">{rankingError}<button className="sakan-textbutton" onClick={() => void calculate()}>Retry ranking</button></div>}
-    {rankingBusy ? <div className="sakan-empty" role="status"><div className="sakan-spinner" /><h3>Recalculating the sample shortlist</h3><p>The server is applying your boundaries and ranking lens.</p></div>
-      : matches.length === 0 ? <div className="sakan-empty"><Search size={23} /><h3>No sample homes meet every hard boundary</h3><p>We will not quietly relax your price, bedroom or availability limits. Loosen a boundary or change the budget to see more homes.</p><button className="sakan-primary" onClick={() => setScreen('home')}><SlidersHorizontal size={14} /> Edit brief</button></div>
-        : <>
-          <section className="area-overview"><div className="sakan-section-title">Area overview · from your matches</div><div className="area-pills">{areaGroups.map(([area, items]) => <button key={area} onClick={() => document.getElementById(`area-${area.replace(/\W/g, '-')}`)?.scrollIntoView({ behavior: 'smooth' })}>{area}<span>{items.length}</span></button>)}</div></section>
-          {areaGroups.map(([area, items]) => <section key={area} id={`area-${area.replace(/\W/g, '-')}`} className="result-area"><h3>{area}<span>{items.length} sample {items.length === 1 ? 'home' : 'homes'}</span></h3><div className="sakan-listing-grid">{items.map((item, index) => listingCard(item.listing, index))}</div></section>)}
-        </>}
-    <div className="result-bottom"><button className="sakan-secondary" onClick={async () => { if (await flushBeforeLeaving()) { setScreen('home'); setStep(isInvest && !draft.personalUse ? 2 : 4); } }}><ArrowLeft size={14} /> Back to brief</button><button className="sakan-secondary" onClick={() => setScreen('privacy')}><Bookmark size={14} /> Saved & privacy ({saved.length})</button></div>
+  const readyMatches = matches.filter((match) => match.listing.ready);
+  const offplanMatches = matches.filter((match) => !match.listing.ready);
+  const savedOutside = saved.filter((id) => !matchById.has(id)).flatMap((id) => { const listing = catalog.find((item) => item.id === id); return listing ? [listing] : []; });
+  const featured = matches[0];
+
+  const billboard = (listing: Listing, match: Match | undefined, label: string) => {
+    const style = posterStyle(listing.id);
+    return <section className="rx-billboard" data-testid="section-featured">
+      <img className="rx-billboard-img" src={imageUrl} alt="" style={{ objectPosition: style.img.objectPosition }} />
+      <div className="rx-billboard-shade" />
+      <div className="rx-billboard-content">
+        <div className="rx-kicker"><span className="rx-r">R</span> {label}</div>
+        <h1>{listing.name}</h1>
+        <div className="rx-billboard-meta"><strong>{listing.area}</strong><span>{listing.beds === 0 ? 'Studio' : `${listing.beds} bed`}</span><span>{listing.baths} bath</span><span>{listing.sqft.toLocaleString()} sqft</span><span className="rx-pill">{listing.ready ? 'Ready' : 'Off-plan'}</span><span>{listing.type}</span></div>
+        <div className="rx-billboard-price">{formatAED(draft.goal === 'rent' ? listing.rent : listing.price)} <small>{draft.goal === 'rent' ? 'annual rent' : 'sample purchase price'}</small></div>
+        <p>{match ? explainMatch(match.why) : 'Saved earlier · not in your current matches'}. {listing.description}</p>
+        <div className="rx-billboard-actions">
+          {screen !== 'detail' && <button className="rx-cta" data-testid="button-featured-details" onClick={() => openDetail(listing.id)}><Info size={16} /> Full details</button>}
+          <button className="rx-ghost" data-testid="button-featured-save" aria-pressed={saved.includes(listing.id)} onClick={() => void toggleSave(listing.id)}>{saved.includes(listing.id) ? <><BookmarkCheck size={16} /> On My list</> : <><Plus size={16} /> My list</>}</button>
+          <button className="rx-ghost" aria-pressed={compare.includes(listing.id)} onClick={() => void toggleCompare(listing.id)}><Scale size={16} /> {compare.includes(listing.id) ? 'In compare' : 'Compare'}</button>
+          {screen === 'detail' && <button className="rx-ghost" data-testid="button-detail-enquiry" onClick={() => openEnquiry(listing)}>Record an enquiry</button>}
+        </div>
+      </div>
+      <span className="rx-illustrative">Illustrative photo · not this property</span>
+    </section>;
+  };
+
+  const skeleton = <div aria-busy="true" role="status" aria-label="Loading recommendations">
+    <div className="rx-billboard rx-skel-bill"><div className="rx-billboard-content"><div className="rx-skel w40" /><div className="rx-skel h1" /><div className="rx-skel w60" /><div className="rx-skel w30" /></div></div>
+    {[0, 1].map((row) => <div className="rx-row" key={row}><div className="rx-skel w20" /><div className="rx-track">{[0, 1, 2, 3, 4].map((card) => <div className="rx-poster" key={card}><div className="rx-skel poster" /></div>)}</div></div>)}
   </div>;
 
-  const detailView = chosen && detailScore ? <div>
-    <div className="sakan-result-head"><div><button className="sakan-textbutton" onClick={() => setScreen('results')}><ArrowLeft size={14} /> Back to matches</button><div className="sakan-eyebrow">Sample property · {chosen.fresh}</div></div><div className="sakan-result-controls"><button onClick={() => void toggleSave(chosen.id)}><Bookmark size={13} />{saved.includes(chosen.id) ? 'Saved' : 'Save'}</button><button onClick={() => openEnquiry(chosen)}>Record an enquiry</button></div></div>
-     <div className="sakan-detail-layout"><div><div className="sakan-detail-image"><img src={imageUrl} alt="Illustrative Dubai residential architecture, not an actual property photo" /></div><div className="sakan-card detail-context"><div className="sakan-eyebrow">A little context</div><p>{chosen.description}</p><div className="sakan-listing-specs"><span><BedDouble size={13} />{chosen.beds} bed</span><span>{chosen.baths} bath</span><span>{chosen.sqft.toLocaleString()} sqft</span><span>{chosen.ready ? 'Ready' : 'Off-plan'}</span></div></div></div>
-      <div className="sakan-card sakan-detail-panel"><div className="sakan-eyebrow">{chosen.area} · fictional sample</div><h2>{chosen.name}</h2><div className="sakan-listing-loc"><MapPin size={12} />{chosen.type} · {chosen.furnished ? 'Furnished' : 'Unfurnished'} · {chosen.parking ? 'Parking included' : 'No parking'}</div><div className="sakan-listing-price"><strong>{formatAED(draft.goal === 'rent' ? chosen.rent : chosen.price)}</strong><span>{draft.goal === 'rent' ? 'annual rent' : 'sample purchase'}</span></div><p>{detailScore.why}. This is one comparison point, not a prediction.</p>
-        <div className="sakan-breakdown">{draft.goal === 'rent' ? <><div className="sakan-breakdown-row"><span>Annual rent</span><strong>{formatAED(chosen.rent)}</strong></div><div className="sakan-breakdown-row"><span>Move-in reserve (5% sample)</span><strong>{formatAED(chosen.rent * .05)}</strong></div><div className="sakan-breakdown-row"><span>Your upfront amount</span><strong>{formatAED(draft.brief.rentUpfront)}</strong></div></> : draft.goal === 'live' ? <><div className="sakan-breakdown-row"><span>Sample purchase price</span><strong>{formatAED(chosen.price)}</strong></div><div className="sakan-breakdown-row"><span>Fee / setup reserve (6%)</span><strong>{formatAED(chosen.price * .06)}</strong></div><div className="sakan-breakdown-row"><span>Cash at close · based on your deposit + fees</span><strong>{formatAED(chosen.price * .06 + draft.brief.downPayment)}</strong></div><div className="sakan-breakdown-row"><span>Estimated financed portion after your deposit</span><strong>{formatAED(Math.max(0, chosen.price - draft.brief.downPayment))}</strong></div><div className="sakan-breakdown-row"><span>Sample monthly mortgage¹</span><strong>{formatAED((Math.max(0, chosen.price - draft.brief.downPayment) * (.0525 / 12)) / (1 - Math.pow(1 + .0525 / 12, -240)))}</strong></div><div className="sakan-breakdown-row"><span>Service + operating estimate</span><strong>{formatAED(chosen.service + chosen.expenses)} / yr</strong></div></> : <><div className="sakan-breakdown-row"><span>Annual gross rent assumption</span><strong>{formatAED(chosen.rent)}</strong></div><div className="sakan-breakdown-row"><span>Vacancy allowance ({draft.brief.vacancy}%)</span><strong>− {formatAED(chosen.rent * draft.brief.vacancy / 100)}</strong></div><div className="sakan-breakdown-row"><span>Service + operating costs</span><strong>− {formatAED(chosen.service + chosen.expenses)}</strong></div><div className="sakan-breakdown-row"><span>Net before debt · yield on all-in (6%)</span><strong>{formatAED(detailScore.annualNet)} · {detailScore.netYield.toFixed(1)}%</strong></div><div className="sakan-breakdown-row"><span>Debt service assumption</span><strong>{formatAED(0)} / yr · excluded</strong></div><div className="sakan-breakdown-row"><span>Downside lens · {draft.brief.riskScenario}</span><strong>{detailScore.downside.toFixed(1)} / 10</strong></div></>}<div className="sakan-breakdown-row"><span>Routine travel estimate</span><strong>{activeDests.length ? `~${detailScore.commute} min` : 'Not included'}</strong></div></div>
-        <div className="sakan-breakdown accurate-breakdown">{detailFinancialRows}<div className="sakan-breakdown-row"><span>Routine travel estimate</span><strong>{activeDests.length ? `~${detailScore.commute} min` : 'Not included'}</strong></div></div>
-        {draft.goal === 'live' && <small className="sakan-note">¹ Illustrative 20-year loan at 5.25% on remaining amount after available cash and acquisition costs. Financing eligibility and fees are not assessed; monthly comfort includes annual operating costs / 12.</small>}{!chosen.ready && <div className="sakan-sample-banner">Off-plan sample: confirm payment plan, progress and handover timing; figures exclude milestone financing and delay risk.</div>}<button className="sakan-primary full-button" onClick={() => openEnquiry(chosen)}>Record an enquiry in Sakan <ArrowRight size={14} /></button>
-      </div></div>
-  </div> : <div className="sakan-empty"><h2>Choose a sample home from your shortlist</h2><button className="sakan-secondary" onClick={() => setScreen('results')}>Back to matches</button></div>;
+  const resultView = <div className="rx-results">
+    {rankingBusy ? skeleton : rankingError ? <div className="rx-page"><div className="sakan-empty" role="alert"><h2>Could not refresh your matches</h2><p>{rankingError}</p><button className="rx-cta" onClick={() => void calculate()}><RotateCcw size={15} /> Retry</button></div></div>
+      : matches.length === 0 ? <div className="rx-page"><div className="sakan-empty rx-empty-big" data-testid="status-no-matches"><Search size={26} /><h2>No sample homes meet every hard boundary</h2><p>We will not quietly relax your price, cash, bedroom, readiness or required travel limits. Loosen one and run the match again.</p><div className="rx-empty-actions"><button className="rx-cta" onClick={() => void editFromResults('money')}><Wallet size={15} /> Adjust budget</button><button className="sakan-secondary" onClick={() => void editFromResults('home')}>Adjust home boundaries</button>{undoHidden && <button className="sakan-secondary" onClick={undoHide}>Undo last hide</button>}</div></div>
+        {savedOutside.length > 0 && <Row testId="row-saved-outside" title="Saved earlier" sub="Not in your current matches">{savedOutside.map((listing) => poster(listing, { inMatches: false }))}</Row>}</div>
+        : <>
+          {featured && billboard(featured.listing, featured, 'Strongest match for your brief · fictional sample')}
+          <div className="rx-rows">
+            <div className="rx-toolbar">
+              <div><h2>Recommended for you</h2><p>{matches.length} sample {matches.length === 1 ? 'home' : 'homes'} pass every boundary · {goalCopy[draft.goal].title.toLowerCase()}{calculatedAt && ` · ranked ${new Date(calculatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}</p></div>
+              <div className="rx-toolbar-controls">
+                <label className="rx-lens"><span>Rank by</span><select aria-label="Ranking priority" data-testid="select-priority" value={draft.priority} onChange={(event) => changePriority(event.target.value as Priority)}>{(['balanced', 'commute', 'cost', 'risk'] as Priority[]).map((value) => <option value={value} key={value}>{priorityLabel[value]}</option>)}</select></label>
+                <button className="rx-ghost sm" data-testid="button-open-compare" onClick={() => setModal('compare')}><Scale size={14} /> Compare {compare.length}/3</button>
+                <button className="rx-ghost sm" data-testid="button-edit-brief" onClick={() => void editFromResults('review')}><Pencil size={14} /> Edit brief</button>
+              </div>
+            </div>
+            {undoHidden && <div className="sakan-sample-banner undo-banner">One sample home hidden from your matches.<button className="sakan-textbutton" data-testid="button-undo-hide" onClick={undoHide}>Undo</button></div>}
+            <Row testId="row-top3" title="Top 3 for your brief" sub="Ranked by your lens">{matches.slice(0, 3).map((match, index) => poster(match.listing, { rank: index, inMatches: true }))}</Row>
+            {areaGroups.map(([area, items]) => <Row key={area} testId={`row-area-${area.replace(/\W/g, '-')}`} title={`In ${area}`} sub={`${items.length} ${items.length === 1 ? 'match' : 'matches'}`}>{items.map((match) => poster(match.listing, { inMatches: true }))}</Row>)}
+            {readyMatches.length > 0 && offplanMatches.length > 0 && <>
+              <Row testId="row-ready" title="Ready to move in" sub={`${readyMatches.length}`}>{readyMatches.map((match) => poster(match.listing, { inMatches: true }))}</Row>
+              <Row testId="row-offplan" title="Off-plan · handover later" sub={`${offplanMatches.length}`}>{offplanMatches.map((match) => poster(match.listing, { inMatches: true }))}</Row>
+            </>}
+            {savedOutside.length > 0 && <Row testId="row-saved-outside" title="Saved earlier" sub="Not in your current matches">{savedOutside.map((listing) => poster(listing, { inMatches: false }))}</Row>}
+            <div className="sakan-sample-banner"><Info size={14} />Fictional sample listings and assumptions, not live inventory, availability or market data. Photos are illustrative crops of one neighbourhood image. Travel times and costs are for comparison, not advice.</div>
+          </div>
+        </>}
+  </div>;
 
-  const privacyView = <div className="sakan-card sakan-journey">
-    <div className="sakan-result-head"><div><div className="sakan-eyebrow">Your private browser workspace</div><h2>Saved homes & privacy</h2><p>No account, login or household sharing.</p></div><button className="sakan-secondary" onClick={() => setScreen('home')}><ArrowLeft size={14} /> Back</button></div>
-    <div className="sakan-sample-banner"><ShieldCheck size={14} />Your brief, saved homes, comparison and enquiry history are stored server-side in a private workspace identified by an HttpOnly same-site browser cookie—not just local storage. Destinations are used to calculate rankings only and are never shared with a household or agent. If you lose the browser cookie, this workspace cannot be recovered.</div>
-    <div className="sakan-section-title">Your saved homes · {saved.length}</div>
-    {!saved.length ? <div className="sakan-empty"><Bookmark size={22} /><h3>No saved homes yet</h3><p>Save sample homes to keep them in this private browser workspace.</p><button className="sakan-primary" onClick={() => { setScreen('results'); if (!matches.length) void calculate(); }}>Browse sample homes</button></div>
-      : <div className="sakan-listing-grid">{saved.map((id, index) => { const listing = catalog.find((item) => item.id === id); return listing ? listingCard(listing, index) : null; })}</div>}
-    <div className="sakan-section-title">Current saved search · your brief</div><div className="sakan-destination"><span className="sakan-pin"><Search size={15} /></span><div><div className="sakan-dest-name">{goalCopy[draft.goal].title} · {formatAED(draft.goal === 'rent' ? draft.brief.rentBudget : draft.goal === 'live' ? draft.brief.buyBudget : draft.brief.capital)}</div><div className="sakan-dest-meta">{draft.destinations.length} destinations · {draft.brief.beds}+ bedrooms · {draft.priority} priority</div></div><button className="sakan-secondary" onClick={async () => { if (await flushBeforeLeaving()) { setScreen('home'); setStep(0); } }}>Edit brief</button></div>
+  const detailView = chosen && detailScore ? <div className="rx-detail">
+    <div className="rx-page rx-detail-top"><button className="rx-ghost sm" data-testid="button-back-to-matches" onClick={() => setScreen(resultsFresh ? 'results' : 'privacy')}><ArrowLeft size={14} /> {resultsFresh ? 'Back to matches' : 'Back to My list'}</button></div>
+    {billboard(chosen, chosenMatch, `${chosenMatch ? 'In your matches' : 'Not in your current matches'} · ${chosen.fresh}`)}
+    <div className="rx-page rx-detail-grid">
+      <div className="rx-panel">
+        <h3>The numbers</h3>
+        <div className="sakan-breakdown">{detailFinancialRows}<div className="sakan-breakdown-row"><span>Routine travel estimate</span><strong>{activeDests.length ? `~${detailScore.commute} min` : 'Not included'}</strong></div></div>
+        {draft.goal === 'live' && <small className="sakan-note">Illustrative 20-year loan at 5.25% on price + 6% costs − available cash. Financing eligibility and fees are not assessed.</small>}
+        {!chosen.ready && <div className="sakan-sample-banner">Off-plan sample: confirm payment plan, progress and handover timing; figures exclude milestone financing and delay risk.</div>}
+      </div>
+      <div className="rx-panel">
+        <h3>The home</h3>
+        <div className="rx-specs"><span><BedDouble size={14} />{chosen.beds} bed</span><span>{chosen.baths} bath</span><span>{chosen.sqft.toLocaleString()} sqft</span><span><Building2 size={14} />{chosen.type}</span><span>{chosen.furnished ? 'Furnished' : 'Unfurnished'}</span><span><CarFront size={14} />{chosen.parking ? 'Parking' : 'No parking'}</span></div>
+        <p className="rx-detail-why">{detailScore.why}. One comparison point, not a prediction.</p>
+        <button className="rx-cta full" onClick={() => openEnquiry(chosen)} data-testid="button-record-enquiry">Record an enquiry in Realmax <ArrowRight size={14} /></button>
+        <small className="sakan-note">Recorded in your workspace only. Not sent to an agent.</small>
+      </div>
+    </div>
+  </div> : <div className="rx-page"><div className="sakan-empty"><h2>Choose a sample home</h2><button className="sakan-secondary" onClick={() => setScreen(resultsFresh ? 'results' : 'questions')}>Back</button></div></div>;
+
+  const privacyView = <div className="rx-page rx-privacy">
+    <div className="rx-toolbar"><div><div className="sakan-eyebrow">Private browser workspace</div><h2>My list & privacy</h2><p>No account, login or household sharing.</p></div><button className="rx-ghost sm" data-testid="button-privacy-back" onClick={() => setScreen(resultsFresh ? 'results' : 'questions')}><ArrowLeft size={14} /> {resultsFresh ? 'Back to matches' : 'Back to questions'}</button></div>
+    {saved.length === 0 ? <div className="sakan-empty"><Bookmark size={22} /><h3>Nothing on your list yet</h3><p>Save homes from your recommendations to keep them here.</p><button className="rx-cta" onClick={() => setScreen(resultsFresh ? 'results' : 'questions')}>{resultsFresh ? 'Browse my matches' : 'Finish my brief'}</button></div>
+      : <Row testId="row-saved" title={`Saved · ${saved.length}`} sub={resultsFresh ? 'Matches and earlier saves' : 'Run your brief to see which still match'}>{saved.flatMap((id) => { const listing = catalog.find((item) => item.id === id); return listing ? [poster(listing, { inMatches: resultsFresh && matchById.has(id) })] : []; })}</Row>}
+    <div className="sakan-sample-banner"><ShieldCheck size={14} />Your brief, saved homes, comparison and enquiry history are stored server-side in a private workspace identified by an HttpOnly same-site browser cookie. Places are used for rankings only and never shared. If you lose the cookie, this workspace cannot be recovered.</div>
+    <div className="sakan-section-title">Current brief</div><div className="sakan-destination"><span className="sakan-pin"><Search size={15} /></span><div><div className="sakan-dest-name">{goalCopy[draft.goal].title} · {formatAED(draft.goal === 'rent' ? b.rentBudget : draft.goal === 'live' ? b.buyBudget : b.capital)}</div><div className="sakan-dest-meta">{activeDests.length} places · {b.beds}+ bedrooms · {priorityLabel[draft.priority]}</div></div><button className="sakan-secondary" onClick={() => void editFromResults('review')}>Edit brief</button></div>
     <div className="sakan-section-title">Enquiry history · {enquiries.length}</div>
-    {!enquiries.length ? <p className="sakan-note">No enquiries recorded.</p> : <div className="enquiry-history">{enquiries.map((entry) => <article key={entry.id} className="sakan-destination"><span className="sakan-pin"><Check size={15} /></span><div><div className="sakan-dest-name">{catalog.find((listing) => listing.id === entry.listingId)?.name || entry.listingId}</div><div className="sakan-dest-meta">{entry.name} · {entry.contact} · {new Date(entry.createdAt).toLocaleString()}</div><p>{entry.message}</p><strong>Recorded in Sakan · not forwarded to an agent</strong></div></article>)}</div>}
+    {!enquiries.length ? <p className="sakan-note">No enquiries recorded.</p> : <div className="enquiry-history">{enquiries.map((entry) => <article key={entry.id} className="sakan-destination"><span className="sakan-pin"><Check size={15} /></span><div><div className="sakan-dest-name">{catalog.find((listing) => listing.id === entry.listingId)?.name || entry.listingId}</div><div className="sakan-dest-meta">{entry.name} · {entry.contact} · {new Date(entry.createdAt).toLocaleString()}</div><p>{entry.message}</p><strong>Recorded in Realmax · not sent to an agent</strong></div></article>)}</div>}
     <div className="sakan-section-title">Privacy choices</div>
-    <div className="sakan-destination"><span className="sakan-pin"><MapPin size={15} /></span><div><div className="sakan-dest-name">Remove destination locations</div><div className="sakan-dest-meta">Delete all saved places from this draft.</div></div><button className="sakan-secondary" onClick={() => updateDraft({ destinations: [] })}>Remove</button></div>
-    <div className="sakan-destination privacy-clear"><span className="sakan-pin"><RotateCcw size={15} /></span><div><div className="sakan-dest-name">Delete private workspace</div><div className="sakan-dest-meta">Delete saved homes, brief, comparisons and enquiry history; clear the browser cookie.</div></div><button className="sakan-secondary" disabled={resetBusy} onClick={() => void resetWorkspace()}>{resetBusy ? 'Deleting…' : 'Delete workspace'}</button></div>
+    <div className="sakan-destination"><span className="sakan-pin"><MapPin size={15} /></span><div><div className="sakan-dest-name">Remove destination locations</div><div className="sakan-dest-meta">Delete all saved places from this brief.</div></div><button className="sakan-secondary" data-testid="button-remove-places" onClick={() => { updateDraft({ destinations: [] }); setToast('Places removed'); }}>Remove</button></div>
+    <div className="sakan-destination privacy-clear"><span className="sakan-pin"><RotateCcw size={15} /></span><div><div className="sakan-dest-name">Delete private workspace</div><div className="sakan-dest-meta">Delete saved homes, brief, comparisons and enquiry history.</div></div><button className="sakan-secondary" data-testid="button-delete-workspace" disabled={resetBusy} onClick={() => void resetWorkspace()}>{resetBusy ? 'Deleting…' : 'Delete workspace'}</button></div>
   </div>;
 
   const compareListings = compare.flatMap((id) => {
@@ -583,14 +723,12 @@ export function Sakan() {
   });
   const scoreForListing = (listing: Listing) =>
     matchById.get(listing.id) || estimateScore(listing, draft.goal, draft.brief, activeDests);
-  const monthlyLoanFor = (listing: Listing) => {
-    const principal = Math.max(0, listing.price * 1.06 - draft.brief.downPayment);
-    return principal * (.0525 / 12) / (1 - Math.pow(1 + .0525 / 12, -240));
-  };
+  const monthlyLoanFor = (listing: Listing) => monthlyLoan(Math.max(0, listing.price * 1.06 - draft.brief.downPayment));
   const comparisonRows: Array<[string, (listing: Listing) => string]> = [
     ['Area', (listing) => listing.area],
     ['Bedrooms & size', (listing) => `${listing.beds} bed · ${listing.sqft.toLocaleString()} sqft`],
     ['Availability', (listing) => listing.ready ? 'Ready' : 'Off-plan'],
+    ['In current matches', (listing) => resultsFresh && matchById.has(listing.id) ? 'Yes' : 'No'],
     ['Routine travel', (listing) => activeDests.length ? `~${travelFor(listing, activeDests)} min avg.` : 'Not included'],
     ...(draft.goal === 'rent' ? [
       ['Annual rent', (listing: Listing) => formatAED(listing.rent)],
@@ -612,23 +750,33 @@ export function Sakan() {
       ['Annual operating costs', (listing: Listing) => `${formatAED(listing.service + listing.expenses)} / yr`],
     ] as Array<[string, (listing: Listing) => string]> : []),
   ];
-  const saveStatus = saveState === 'loading' ? 'Loading private workspace…' : saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Could not save';
-  return <div className="sakan-root"><div className="sakan-shell">
-    <header className="sakan-topbar"><button className="sakan-brand" onClick={() => { setScreen('home'); setStep(0); }} aria-label="Sakan home"><span className="sakan-mark"><Home size={19} /></span><span className="sakan-wordmark">sakan</span></button><nav className="sakan-toplinks" aria-label="Main navigation"><span className={`save-status ${saveState}`} role="status">{saveStatus}{saveState === 'error' && <button onClick={() => void saveNow().catch((saveError) => setError(errorText(saveError)))}>Retry</button>}</span><button onClick={async () => { if (await flushBeforeLeaving()) setScreen('privacy'); }}>Saved & privacy {saved.length > 0 && <span className="sakan-badge">{saved.length}</span>}</button><button onClick={() => setModal('how')}>How it works</button></nav></header>
-    {catalogState === 'loading' ? <div className="sakan-empty loading-card" role="status"><div className="sakan-spinner" /><h2>Preparing your sample homes</h2><p>Loading the catalog and private browser workspace.</p></div>
-      : catalogState === 'error' ? <div className="sakan-empty" role="alert"><h2>Could not load Sakan</h2><p>{error}</p><button className="sakan-primary" onClick={() => window.location.reload()}>Try again</button></div>
-        : <>
-          {screen === 'home' && <><section className="sakan-hero"><div><div className="sakan-eyebrow">A more human way to find home · UAE</div><h1>Find a home that fits <em>your actual life.</em></h1><p>Start with your people, places and budget. Then see the tradeoffs clearly—without the sales gloss.</p><div className="sakan-hero-note"><Sparkles size={15} /> A calmer way to decide, whether you rent, buy or invest.</div></div><DubaiMap destinations={activeDests} /></section>
-            {goalSelector}<div className="sakan-workspace"><main>{journeyPane()}</main><aside className="sakan-card sakan-side-note"><div className="sakan-eyebrow">A little reassurance</div><h3>Start with life. Let the numbers follow.</h3><p>Sakan brings everyday travel, comfort and costs into one decision. Nothing here is a listing feed or financial promise.</p><div className="sakan-side-list"><div className="sakan-side-item"><MapPin size={15} />Your destination brief is private; the map is illustrative.</div><div className="sakan-side-item"><Scale size={15} />Compare cost, commute and downside on equal terms.</div><div className="sakan-side-item"><Info size={15} />Every property and assumption is clearly labelled sample data.</div></div><div className="side-explore"><button className="sakan-textbutton" onClick={() => void calculate()} disabled={rankingBusy}>Explore a sample shortlist <ArrowRight size={13} /></button><div>Preview without completing this brief.</div></div></aside></div></>}
-          {screen === 'results' && resultView}{screen === 'detail' && detailView}{screen === 'privacy' && privacyView}
-          <footer className="sakan-footer">Sakan is a decision-making prototype. Listings, prices, rents, travel times, yields and images are illustrative sample data—not live market information or financial advice.</footer>
-        </>}
-  </div>
+  const saveStatus = saveState === 'loading' ? 'Loading workspace' : saveState === 'saving' ? 'Saving' : saveState === 'saved' ? 'Saved' : 'Could not save';
+  return <div className={`sakan-root rx-screen-${screen}`}>
+    <header className="rx-topbar">
+      <button className="rx-brand" data-testid="button-brand" onClick={async () => { if (await flushBeforeLeaving()) setScreen(resultsFresh ? 'results' : 'questions'); }} aria-label="Realmax home">REALMAX</button>
+      <nav className="rx-nav" aria-label="Main navigation">
+        {resultsFresh && screen !== 'results' && <button data-testid="link-matches" onClick={() => setScreen('results')}>My matches</button>}
+        <button data-testid="link-my-list" className={screen === 'privacy' ? 'active' : ''} onClick={async () => { if (await flushBeforeLeaving()) setScreen('privacy'); }}>My list{saved.length > 0 && <span className="rx-count">{saved.length}</span>}</button>
+        <button data-testid="link-how" onClick={() => setModal('how')}>How it works</button>
+        <span className={`save-status ${saveState}`} role="status" data-testid="status-save">{saveStatus}{saveState === 'error' && <button onClick={() => void saveNow().catch((saveError) => setError(errorText(saveError)))}>Retry</button>}</span>
+      </nav>
+    </header>
+    <main>
+      {catalogState === 'loading' ? <div className="rx-page"><div className="sakan-empty loading-card" role="status"><div className="sakan-spinner" /><h2>Preparing Realmax</h2><p>Loading the sample catalogue and your private workspace.</p></div></div>
+        : catalogState === 'error' ? <div className="rx-page"><div className="sakan-empty" role="alert"><h2>Could not load Realmax</h2><p>{error}</p><button className="rx-cta" onClick={() => window.location.reload()}>Try again</button></div></div>
+          : <>
+            {screen === 'questions' && questionView}
+            {screen === 'results' && resultView}
+            {screen === 'detail' && detailView}
+            {screen === 'privacy' && privacyView}
+          </>}
+    </main>
+    <footer className="sakan-footer">Realmax is a decision-making prototype. Listings, prices, rents, travel times, yields and images are illustrative sample data, not live market information or financial advice.</footer>
 
-    {modal === 'destination' && <Dialog titleId="destination-title" onClose={() => { setModal(null); setError(''); }}><div className="sakan-modal-head"><div><div className="sakan-eyebrow">Make your map feel like yours</div><h2 id="destination-title">{editing ? 'Edit place' : 'Add a place'}</h2></div><button className="sakan-modal-close" onClick={() => setModal(null)} aria-label="Close"><X size={16} /></button></div><div className="sakan-form-grid"><div className="sakan-field"><label htmlFor="destination-kind">Place in your life</label><select id="destination-kind" className="sakan-select" value={draftDest.kind} onChange={(event) => setDraftDest({ ...draftDest, kind: event.target.value, label: event.target.value === 'Work' ? 'My work' : event.target.value })}>{['Work', 'Partner work', 'School', 'Worship', 'Sport', 'Custom'].map((kind) => <option key={kind}>{kind}</option>)}</select></div><div className="sakan-field"><label htmlFor="destination-label">Short label</label><input id="destination-label" className="sakan-input" value={draftDest.label} onChange={(event) => setDraftDest({ ...draftDest, label: event.target.value })} placeholder="My office" /></div><div className="sakan-field"><label htmlFor="destination-place">Sample place</label><select id="destination-place" className="sakan-select" value={draftDest.place} onChange={(event) => setDraftDest({ ...draftDest, place: event.target.value, address: event.target.value.split(',').slice(-1)[0] })}>{places.map((place) => <option key={place}>{place}</option>)}</select></div><div className="sakan-field"><label htmlFor="destination-address">Area note (optional)</label><input id="destination-address" className="sakan-input" value={draftDest.address} onChange={(event) => setDraftDest({ ...draftDest, address: event.target.value })} placeholder="Neighbourhood or building" /></div><div className="sakan-field"><label htmlFor="destination-mode">Travel mode</label><select id="destination-mode" className="sakan-select" value={draftDest.mode} onChange={(event) => setDraftDest({ ...draftDest, mode: event.target.value as Destination['mode'] })}><option value="car">Car</option><option value="metro">Metro</option><option value="walk">Walk / cycle</option></select></div><div className="sakan-field"><label htmlFor="destination-frequency">Visits per week</label><select id="destination-frequency" className="sakan-select" value={draftDest.frequency} onChange={(event) => setDraftDest({ ...draftDest, frequency: Number(event.target.value) })}>{[1, 2, 3, 4, 5, 6, 7].map((count) => <option value={count} key={count}>{count} days / week</option>)}</select></div><div className="sakan-field"><label htmlFor="destination-time">Maximum travel time (minutes)</label><input id="destination-time" className="sakan-input" type="number" min="5" max="120" value={draftDest.maxMinutes} onChange={(event) => setDraftDest({ ...draftDest, maxMinutes: Number(event.target.value) || 0 })} /></div></div><div className="sakan-section-title">How much should this matter?</div><div className="sakan-toggle-row"><button className={`sakan-chip${draftDest.required ? ' active' : ''}`} onClick={() => setDraftDest({ ...draftDest, required: true, preferred: false })}>Required boundary</button><button className={`sakan-chip${draftDest.preferred ? ' active' : ''}`} onClick={() => setDraftDest({ ...draftDest, preferred: true, required: false })}>Preferred</button></div>{error && <div className="sakan-error" role="alert">{error}</div>}<div className="sakan-modal-actions"><button className="sakan-secondary" onClick={() => setModal(null)}>Cancel</button><button className="sakan-primary" onClick={saveDestination}>{editing ? 'Save place' : 'Add place'}</button></div></Dialog>}
+    {modal === 'destination' && <Dialog titleId="destination-title" onClose={() => { setModal(null); setError(''); }}><div className="sakan-modal-head"><div><div className="sakan-eyebrow">A place in your week</div><h2 id="destination-title">{editing ? 'Edit place' : 'Add a place'}</h2></div><button className="sakan-modal-close" onClick={() => setModal(null)} aria-label="Close"><X size={16} /></button></div><div className="sakan-form-grid"><div className="sakan-field"><label htmlFor="destination-kind">Place in your life</label><select id="destination-kind" className="sakan-select" value={draftDest.kind} onChange={(event) => setDraftDest({ ...draftDest, kind: event.target.value, label: event.target.value === 'Work' ? 'My work' : event.target.value })}>{['Work', 'Partner work', 'School', 'Worship', 'Sport', 'Custom'].map((kind) => <option key={kind}>{kind}</option>)}</select></div><div className="sakan-field"><label htmlFor="destination-label">Short label</label><input id="destination-label" className="sakan-input" value={draftDest.label} onChange={(event) => setDraftDest({ ...draftDest, label: event.target.value })} placeholder="My office" /></div><div className="sakan-field"><label htmlFor="destination-place">Supported sample place</label><select id="destination-place" className="sakan-select" value={draftDest.place} onChange={(event) => setDraftDest({ ...draftDest, place: event.target.value, address: event.target.value.split(',').slice(-1)[0] })}>{places.map((place) => <option key={place}>{place}</option>)}</select></div><div className="sakan-field"><label htmlFor="destination-address">Area note (optional)</label><input id="destination-address" className="sakan-input" value={draftDest.address} onChange={(event) => setDraftDest({ ...draftDest, address: event.target.value })} placeholder="Neighbourhood or building" /></div><div className="sakan-field"><label htmlFor="destination-mode">Travel mode</label><select id="destination-mode" className="sakan-select" value={draftDest.mode} onChange={(event) => setDraftDest({ ...draftDest, mode: event.target.value as Destination['mode'] })}><option value="car">Car</option><option value="metro">Metro</option><option value="walk">Walk / cycle</option></select></div><div className="sakan-field"><label htmlFor="destination-frequency">Visits per week</label><select id="destination-frequency" className="sakan-select" value={draftDest.frequency} onChange={(event) => setDraftDest({ ...draftDest, frequency: Number(event.target.value) })}>{[1, 2, 3, 4, 5, 6, 7].map((count) => <option value={count} key={count}>{count} days / week</option>)}</select></div><div className="sakan-field"><label htmlFor="destination-time">Maximum travel time (minutes)</label><input id="destination-time" className="sakan-input" type="number" min="5" max="120" value={draftDest.maxMinutes} onChange={(event) => setDraftDest({ ...draftDest, maxMinutes: Number(event.target.value) || 0 })} /></div></div><div className="sakan-section-title">How much should this matter?</div><div className="sakan-toggle-row"><button className={`sakan-chip${draftDest.required ? ' active' : ''}`} aria-pressed={draftDest.required} onClick={() => setDraftDest({ ...draftDest, required: true, preferred: false })}>Required boundary</button><button className={`sakan-chip${!draftDest.required ? ' active' : ''}`} aria-pressed={!draftDest.required} onClick={() => setDraftDest({ ...draftDest, preferred: true, required: false })}>Preferred</button></div>{error && <div className="sakan-error" role="alert">{error}</div>}<div className="sakan-modal-actions"><button className="sakan-secondary" onClick={() => { setModal(null); setError(''); }}>Cancel</button><button className="sakan-primary" data-testid="button-save-destination" onClick={saveDestination}>{editing ? 'Save place' : 'Add place'}</button></div></Dialog>}
     {modal === 'compare' && <Dialog titleId="compare-title" onClose={() => setModal(null)} wide>
       <div className="sakan-modal-head"><div><div className="sakan-eyebrow">Tradeoffs, side by side</div><h2 id="compare-title">Compare sample homes</h2></div><button className="sakan-modal-close" onClick={() => setModal(null)} aria-label="Close"><X size={16} /></button></div>
-      {!compareListings.length ? <div className="sakan-empty"><Scale size={22} /><h3>Choose homes to compare</h3><p>Add up to three homes from the results.</p></div>
+      {!compareListings.length ? <div className="sakan-empty"><Scale size={22} /><h3>Choose homes to compare</h3><p>Add up to three homes from your recommendations.</p></div>
         : <div className="sakan-compare-table"><div className="sakan-compare-grid" style={{ gridTemplateColumns: `130px repeat(${compareListings.length}, minmax(160px, 1fr))` }}>
           <div className="sakan-compare-label">Your comparison</div>
           {compareListings.map((listing) => <div className="sakan-compare-heading" key={listing.id}>{listing.name}<button className="sakan-icon-button" aria-label={`Remove ${listing.name} from compare`} onClick={() => void toggleCompare(listing.id)}><X size={13} /></button></div>)}
@@ -636,8 +784,8 @@ export function Sakan() {
         </div></div>}
       <div className="sakan-modal-actions"><button className="sakan-secondary" onClick={() => setModal(null)}>Done</button></div>
     </Dialog>}
-    {modal === 'enquiry' && chosen && <Dialog titleId="enquiry-title" onClose={() => setModal(null)}><div className="sakan-modal-head"><div><div className="sakan-eyebrow">No contact is forwarded</div><h2 id="enquiry-title">{enquiryResult ? 'Enquiry recorded' : 'Record an enquiry'}</h2></div><button className="sakan-modal-close" onClick={() => setModal(null)} aria-label="Close"><X size={16} /></button></div>{enquiryResult ? <><div className="sakan-sample-banner"><Check size={15} />This message is recorded in Sakan only. It was not sent to an agent.</div><div className="enquiry-receipt"><strong>{chosen.name}</strong><p>{enquiryResult.message}</p><small>Reference {enquiryResult.id} · {new Date(enquiryResult.createdAt).toLocaleString()}</small></div></> : <><p>This record stays in your private Sakan workspace. It will not be sent to an agent or third party.</p><div className="sakan-card enquiry-listing"><div className="sakan-eyebrow">Sample property</div><strong>{chosen.name}</strong><div className="sakan-dest-meta">{chosen.area} · {formatAED(draft.goal === 'rent' ? chosen.rent : chosen.price)}</div></div><div className="sakan-form-grid"><div className="sakan-field"><label htmlFor="enquiry-name">Your name</label><input id="enquiry-name" className="sakan-input" required value={enquiryName} onChange={(event) => setEnquiryName(event.target.value)} /></div><div className="sakan-field"><label htmlFor="enquiry-contact">Email or phone</label><input id="enquiry-contact" className="sakan-input" required autoComplete="email" value={enquiryContact} onChange={(event) => setEnquiryContact(event.target.value)} /></div><div className="sakan-field enquiry-message"><label htmlFor="enquiry-message">Message</label><textarea id="enquiry-message" className="sakan-input" rows={4} value={enquiryMessage} onChange={(event) => setEnquiryMessage(event.target.value)} /></div></div><label className="sakan-checkline consent-line"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />I agree to store this enquiry in my private workspace. This does not share household destinations and does not forward anything to an agent.</label>{error && <div className="sakan-error" role="alert">{error}</div>}</>}<div className="sakan-modal-actions">{enquiryResult ? <button className="sakan-primary" onClick={() => setModal(null)}>Done</button> : <><button className="sakan-secondary" onClick={() => setModal(null)}>Cancel</button><button className="sakan-primary" disabled={enquiryBusy} onClick={() => void submitEnquiry()}>{enquiryBusy ? 'Recording…' : 'Record in Sakan'}</button></>}</div></Dialog>}
-    {modal === 'how' && <Dialog titleId="how-title" onClose={() => setModal(null)}><div className="sakan-modal-head"><div><div className="sakan-eyebrow">A tool, not a broker</div><h2 id="how-title">How Sakan works</h2></div><button className="sakan-modal-close" onClick={() => setModal(null)} aria-label="Close"><X size={16} /></button></div><p>Sakan starts with routines, finances and home boundaries, then compares a small, fictional sample set. It does not connect to listing feeds, navigation, banks or agencies.</p><div className="sakan-side-list"><div className="sakan-side-item"><MapPin size={15} />Map, locations and travel assumptions are schematic and illustrative.</div><div className="sakan-side-item"><Wallet size={15} />Financial figures are scenario arithmetic from sample assumptions.</div><div className="sakan-side-item"><ShieldCheck size={15} />Your server-side workspace belongs to this browser cookie; losing the cookie means it cannot be recovered.</div></div><div className="sakan-modal-actions"><button className="sakan-secondary" onClick={() => setModal(null)}>Close</button><button className="sakan-primary" onClick={async () => { if (await flushBeforeLeaving()) { setModal(null); setScreen('privacy'); } }}>Privacy choices</button></div></Dialog>}
-    {toast && <div className="sakan-toast" role="status">{toast}{undoHidden && <button onClick={undoHide}>Undo</button>}</div>}
+    {modal === 'enquiry' && chosen && <Dialog titleId="enquiry-title" onClose={() => setModal(null)}><div className="sakan-modal-head"><div><div className="sakan-eyebrow">Nothing is forwarded</div><h2 id="enquiry-title">{enquiryResult ? 'Enquiry recorded' : 'Record an enquiry'}</h2></div><button className="sakan-modal-close" onClick={() => setModal(null)} aria-label="Close"><X size={16} /></button></div>{enquiryResult ? <><div className="sakan-sample-banner"><Check size={15} />This message is recorded in Realmax only. It was not sent to an agent.</div><div className="enquiry-receipt"><strong>{chosen.name}</strong><p>{enquiryResult.message}</p><small>Reference {enquiryResult.id} · {new Date(enquiryResult.createdAt).toLocaleString()}</small></div></> : <><p>This record stays in your private Realmax workspace. It will not be sent to an agent or third party.</p><div className="sakan-card enquiry-listing"><div className="sakan-eyebrow">Sample property</div><strong>{chosen.name}</strong><div className="sakan-dest-meta">{chosen.area} · {formatAED(draft.goal === 'rent' ? chosen.rent : chosen.price)}</div></div><div className="sakan-form-grid"><div className="sakan-field"><label htmlFor="enquiry-name">Your name</label><input id="enquiry-name" data-testid="input-enquiry-name" className="sakan-input" required value={enquiryName} onChange={(event) => setEnquiryName(event.target.value)} /></div><div className="sakan-field"><label htmlFor="enquiry-contact">Email or phone</label><input id="enquiry-contact" data-testid="input-enquiry-contact" className="sakan-input" required autoComplete="email" value={enquiryContact} onChange={(event) => setEnquiryContact(event.target.value)} /></div><div className="sakan-field enquiry-message"><label htmlFor="enquiry-message">Message</label><textarea id="enquiry-message" className="sakan-input" rows={4} value={enquiryMessage} onChange={(event) => setEnquiryMessage(event.target.value)} /></div></div><label className="sakan-checkline consent-line"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />I agree to store this enquiry in my private workspace. This does not share household destinations and does not forward anything to an agent.</label>{error && <div className="sakan-error" role="alert">{error}</div>}</>}<div className="sakan-modal-actions">{enquiryResult ? <button className="sakan-primary" onClick={() => setModal(null)}>Done</button> : <><button className="sakan-secondary" onClick={() => setModal(null)}>Cancel</button><button className="sakan-primary" data-testid="button-submit-enquiry" disabled={enquiryBusy} onClick={() => void submitEnquiry()}>{enquiryBusy ? 'Recording…' : 'Record in Realmax'}</button></>}</div></Dialog>}
+    {modal === 'how' && <Dialog titleId="how-title" onClose={() => setModal(null)}><div className="sakan-modal-head"><div><div className="sakan-eyebrow">A tool, not a broker</div><h2 id="how-title">How Realmax works</h2></div><button className="sakan-modal-close" onClick={() => setModal(null)} aria-label="Close"><X size={16} /></button></div><p>Answer a short series of questions about your goal, places, money and home. Realmax then ranks a small, fictional sample set against your hard boundaries. It does not connect to listing feeds, navigation, banks or agencies.</p><div className="sakan-side-list"><div className="sakan-side-item"><MapPin size={15} />Map, places and travel assumptions are schematic and illustrative.</div><div className="sakan-side-item"><Wallet size={15} />Financial figures are scenario arithmetic from sample assumptions.</div><div className="sakan-side-item"><ShieldCheck size={15} />Your server-side workspace belongs to this browser cookie; losing it means it cannot be recovered.</div></div><div className="sakan-modal-actions"><button className="sakan-secondary" onClick={() => setModal(null)}>Close</button><button className="sakan-primary" onClick={async () => { if (await flushBeforeLeaving()) { setModal(null); setScreen('privacy'); } }}>Privacy choices</button></div></Dialog>}
+    {toast && <div className="sakan-toast" role="status">{toast}{undoHidden && toast.includes('hidden') && <button onClick={undoHide}>Undo</button>}</div>}
   </div>;
 }

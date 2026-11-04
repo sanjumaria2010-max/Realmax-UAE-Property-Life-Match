@@ -1,6 +1,6 @@
-# Sakan
+# Realmax
 
-Life-first UAE property discovery for renting, buying to live, and investing, graduated from the approved Sakan canvas prototype.
+Life-first UAE property discovery for renting, buying to live, and investing. The live app is branded Realmax with a cinematic dark theme and orange accents; internal Sakan identifiers remain unchanged to preserve API and workspace compatibility.
 
 ## Run & Operate
 
@@ -35,7 +35,7 @@ Life-first UAE property discovery for renting, buying to live, and investing, gr
 - The current release intentionally uses labelled sample inventory and synthetic travel estimates; there is no licensed listing feed, routing provider, mortgage service, or agent delivery connection.
 - Workspaces are anonymous and browser-scoped, not user accounts. A private HTTP-only cookie grants access; clearing or losing the cookie prevents recovery. Add managed authentication before claiming cross-device access.
 - Enquiries are recorded in Sakan, never silently forwarded. User consent covers storage; household destination data is not included.
-- Preserve the approved canvas design when changing functionality; the original mockup remains available for reference.
+- The user requested a Netflix-inspired experience: a focused question sequence comes before recommendations. Keep Realmax branding and the original mockup as a historical reference, not a constraint on this new flow.
 
 ## Product
 
