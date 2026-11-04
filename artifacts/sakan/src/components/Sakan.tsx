@@ -15,9 +15,11 @@ import {
 } from '../sakan-data';
 import { Choice, Dialog, DubaiMap, MoneyField, Row, cityImages, imageUrl, posterStyle } from './sakan-ui';
 import { JourneyRail, type BriefLine } from './sakan-journey';
+import { MonitorDashboard, MonitorToggle } from './sakan-monitor';
+import { monitorStore, useMonitor } from '../hooks/use-monitor';
 import './sakan.css';
 
-type Screen = 'questions' | 'results' | 'detail' | 'privacy';
+type Screen = 'questions' | 'results' | 'detail' | 'privacy' | 'monitor';
 type Modal = 'destination' | 'compare' | 'enquiry' | 'how' | null;
 type WorkspaceDraft = { goal: Goal; brief: Brief; destinations: Destination[]; personalUse: boolean; priority: Priority };
 type SaveState = 'loading' | 'saved' | 'saving' | 'error';
@@ -70,7 +72,8 @@ export function Sakan() {
   const [compare, setCompare] = useState<string[]>([]);
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [qKey, setQKey] = useState<QKey>('goal');
-  const [screen, setScreen] = useState<Screen>('questions');
+  const [screen, setScreen] = useState<Screen>(() => typeof window !== 'undefined' && window.location.hash === '#monitor' ? 'monitor' : 'questions');
+  const monitor = useMonitor();
   const [selected, setSelected] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [editing, setEditing] = useState<Destination | null>(null);
@@ -180,6 +183,11 @@ export function Sakan() {
     return () => window.clearTimeout(timer);
   }, [toast]);
   useEffect(() => { window.scrollTo({ top: 0 }); }, [screen, qKey]);
+  useEffect(() => {
+    const url = window.location.pathname + window.location.search;
+    if (screen === 'monitor' && window.location.hash !== '#monitor') window.history.replaceState(null, '', url + '#monitor');
+    else if (screen !== 'monitor' && window.location.hash === '#monitor') window.history.replaceState(null, '', url);
+  }, [screen]);
 
   const updateDraft = (patch: Partial<WorkspaceDraft>) => {
     touch();
@@ -347,7 +355,7 @@ export function Sakan() {
     setToast(editing ? 'Place updated' : 'Place added');
   };
   const resetWorkspace = async () => {
-    if (!window.confirm('Delete this private browser workspace, including saved homes, your brief and enquiry history? This cannot be undone.')) return;
+    if (!window.confirm('Delete this private browser workspace, including saved homes, your brief, enquiry history and monitored properties in this browser? This cannot be undone.')) return;
     resetInProgressRef.current = true;
     setResetBusy(true);
     try {
@@ -369,7 +377,8 @@ export function Sakan() {
       setModal(null);
       setSaveState('saved');
       setWorkspaceReady(true);
-      setToast('Private workspace deleted and reinitialized');
+      monitorStore.clear();
+      setToast('Private workspace deleted and reinitialized · browser monitoring cleared');
     } catch (resetError) {
       setError(`Could not delete your workspace. ${errorText(resetError)}`);
       setSaveState('error');
@@ -628,6 +637,7 @@ export function Sakan() {
           <span className="rx-tag">{listing.ready ? 'Ready' : 'Off-plan'}</span>
           <span className="rx-poster-title">{listing.name}</span>
         </button>
+        <MonitorToggle listing={listing} />
         <div className="rx-poster-body">
           <div className="rx-meta">{listing.area} · {listing.beds === 0 ? 'Studio' : `${listing.beds} bed`} · {listing.type}</div>
           <div className="rx-price">{formatAED(price)}<small>{draft.goal === 'rent' ? ' / year' : draft.goal === 'invest' && result ? ` · ${result.netYield.toFixed(1)}% sample net` : ''}</small></div>
@@ -668,6 +678,7 @@ export function Sakan() {
           {screen !== 'detail' && <button className="rx-cta" data-testid="button-featured-details" onClick={() => openDetail(listing.id)}><Info size={16} /> Full details</button>}
           <button className="rx-ghost" data-testid="button-featured-save" aria-pressed={saved.includes(listing.id)} onClick={() => void toggleSave(listing.id)}>{saved.includes(listing.id) ? <><BookmarkCheck size={16} /> On My list</> : <><Plus size={16} /> My list</>}</button>
           <button className="rx-ghost" aria-pressed={compare.includes(listing.id)} onClick={() => void toggleCompare(listing.id)}><Scale size={16} /> {compare.includes(listing.id) ? 'In compare' : 'Compare'}</button>
+          <MonitorToggle listing={listing} variant="ghost" />
           {screen === 'detail' && <button className="rx-ghost" data-testid="button-detail-enquiry" onClick={() => openEnquiry(listing)}>Record an enquiry</button>}
         </div>
       </div>
@@ -738,7 +749,7 @@ export function Sakan() {
     {!enquiries.length ? <p className="sakan-note">No enquiries recorded.</p> : <div className="enquiry-history">{enquiries.map((entry) => <article key={entry.id} className="sakan-destination"><span className="sakan-pin"><Check size={15} /></span><div><div className="sakan-dest-name">{catalog.find((listing) => listing.id === entry.listingId)?.name || entry.listingId}</div><div className="sakan-dest-meta">{entry.name} · {entry.contact} · {new Date(entry.createdAt).toLocaleString()}</div><p>{entry.message}</p><strong>Recorded in Realmax · not sent to an agent</strong></div></article>)}</div>}
     <div className="sakan-section-title">Privacy choices</div>
     <div className="sakan-destination"><span className="sakan-pin"><MapPin size={15} /></span><div><div className="sakan-dest-name">Remove destination locations</div><div className="sakan-dest-meta">Delete all saved places from this brief.</div></div><button className="sakan-secondary" data-testid="button-remove-places" onClick={() => { updateDraft({ destinations: [] }); setToast('Places removed'); }}>Remove</button></div>
-    <div className="sakan-destination privacy-clear"><span className="sakan-pin"><RotateCcw size={15} /></span><div><div className="sakan-dest-name">Delete private workspace</div><div className="sakan-dest-meta">Delete saved homes, brief, comparisons and enquiry history.</div></div><button className="sakan-secondary" data-testid="button-delete-workspace" disabled={resetBusy} onClick={() => void resetWorkspace()}>{resetBusy ? 'Deleting…' : 'Delete workspace'}</button></div>
+    <div className="sakan-destination privacy-clear"><span className="sakan-pin"><RotateCcw size={15} /></span><div><div className="sakan-dest-name">Delete private workspace</div><div className="sakan-dest-meta">Delete saved homes, brief, comparisons and enquiry history. Also clears monitored properties kept in this browser.</div></div><button className="sakan-secondary" data-testid="button-delete-workspace" disabled={resetBusy} onClick={() => void resetWorkspace()}>{resetBusy ? 'Deleting…' : 'Delete workspace'}</button></div>
   </div>;
 
   const compareListings = compare.flatMap((id) => {
@@ -782,11 +793,13 @@ export function Sakan() {
         <button data-testid="button-go-home" onClick={() => void goHome()} disabled={!workspaceReady || resetBusy}><Home size={15} aria-hidden="true" />Go to home</button>
         {resultsFresh && screen !== 'results' && <button data-testid="link-matches" onClick={() => setScreen('results')}>My matches</button>}
         <button data-testid="link-my-list" className={screen === 'privacy' ? 'active' : ''} onClick={async () => { if (await flushBeforeLeaving()) setScreen('privacy'); }}>My list{saved.length > 0 && <span className="rx-count">{saved.length}</span>}</button>
+        <button data-testid="link-monitor" className={screen === 'monitor' ? 'active' : ''} disabled={catalogState !== 'ready'} onClick={async () => { if (await flushBeforeLeaving()) setScreen('monitor'); }}>Monitor<span className="rx-count rxm-nav-count" data-testid="text-monitor-count">{monitor.ids.length}</span></button>
         <button data-testid="link-how" onClick={() => setModal('how')}>How it works</button>
         <span className={`save-status ${saveState}`} role="status" data-testid="status-save">{saveStatus}{saveState === 'error' && <button onClick={() => void saveNow().catch((saveError) => setError(errorText(saveError)))}>Retry</button>}</span>
       </nav>
     </header>
     <main>
+      {monitor.error && screen !== 'monitor' && <div className="sakan-error" role="alert">{monitor.error} <button className="sakan-textbutton" onClick={monitor.dismissError}>Dismiss</button></div>}
       {catalogState === 'loading' ? <div className="rx-page"><div className="sakan-empty loading-card" role="status"><div className="sakan-spinner" /><h2>Preparing Realmax</h2><p>Loading the sample catalogue and your private workspace.</p></div></div>
         : catalogState === 'error' ? <div className="rx-page"><div className="sakan-empty" role="alert"><h2>Could not load Realmax</h2><p>{error}</p><button className="rx-cta" onClick={() => window.location.reload()}>Try again</button></div></div>
           : <>
@@ -794,6 +807,7 @@ export function Sakan() {
             {screen === 'results' && resultView}
             {screen === 'detail' && detailView}
             {screen === 'privacy' && privacyView}
+            {screen === 'monitor' && <MonitorDashboard catalog={catalog} onOpenDetail={openDetail} onBack={() => setScreen(resultsFresh ? 'results' : 'questions')} />}
           </>}
     </main>
     <section className="rx-cityband" aria-label="Dubai at night">

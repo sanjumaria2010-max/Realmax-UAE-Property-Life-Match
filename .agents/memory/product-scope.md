@@ -14,3 +14,9 @@ The user's core concept is UAE real estate discovery that begins with the househ
 **Why:** The user described life-first discovery as the central product idea, rather than conventional listing-first browsing.
 
 **How to apply:** Keep household routines central to home-seeking flows, while avoiding irrelevant personal-location requirements for pure investment searches.
+
+For property monitoring, the user chose clearly labelled sample data for historical prices and future scenarios.
+
+**Why:** The user explicitly selected “Clearly labelled sample data” rather than connecting real market data.
+
+**How to apply:** Do not imply monitoring uses verified transaction history or a live predictive model. Keep fictional history and assumption-based future scenarios clearly distinguished.
