@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { Check, ChevronLeft, ChevronRight, MapPin, type LucideIcon } from 'lucide-react';
 import { areaKey, type Destination } from '../sakan-data';
 
@@ -70,11 +70,22 @@ export function DubaiMap({ destinations }: { destinations: Destination[] }) {
 export type Option<T> = { value: T; label: string; sub?: string; icon?: LucideIcon };
 export function Choice<T extends string | number>({ label, options, value, onChange, compact = false }: { label: string; options: Option<T>[]; value: T; onChange: (value: T) => void; compact?: boolean }) {
   const slug = label.toLowerCase().replace(/\W+/g, '-');
-  return <div className={`rx-choices${compact ? ' compact' : ''}`} role="radiogroup" aria-label={label}>
-    {options.map((option) => {
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const keys = ['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft'];
+    if (!keys.includes(event.key)) return;
+    event.preventDefault();
+    const dir = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1;
+    const at = Math.max(0, options.findIndex((option) => option.value === value));
+    const nextIndex = (at + dir + options.length) % options.length;
+    onChange(options[nextIndex].value);
+    const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role=radio]');
+    buttons[nextIndex]?.focus();
+  };
+  return <div className={`rx-choices${compact ? ' compact' : ''}`} role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
+    {options.map((option, index) => {
       const on = option.value === value;
       const Icon = option.icon;
-      return <button type="button" key={String(option.value)} role="radio" aria-checked={on} className={`rx-choice${on ? ' on' : ''}`} onClick={() => onChange(option.value)} data-testid={`option-${slug}-${String(option.value)}`}>
+      return <button type="button" key={String(option.value)} role="radio" aria-checked={on} tabIndex={on || (index === 0 && !options.some((item) => item.value === value)) ? 0 : -1} className={`rx-choice${on ? ' on' : ''}`} onClick={() => onChange(option.value)} data-testid={`option-${slug}-${String(option.value)}`}>
         {Icon && <span className="rx-choice-icon"><Icon size={18} /></span>}
         <span className="rx-choice-text"><strong>{option.label}</strong>{option.sub && <small>{option.sub}</small>}</span>
         <span className="rx-choice-check" aria-hidden="true">{on && <Check size={14} strokeWidth={3} />}</span>

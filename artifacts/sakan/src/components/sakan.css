@@ -318,3 +318,79 @@ body:has(.sakan-root){margin:0;background:#0d0b0a}
   .rx-brand{font-size:28px}
   .rx-rank{-webkit-text-stroke-width:2px;margin-right:-12px}
 }
+
+/* ===== Realmax adventure layer ===== */
+.sakan-root :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.rx-question-layout{position:relative;z-index:1;width:100%;max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(0,820px) 280px;gap:clamp(20px,4vw,64px);align-items:start;justify-content:space-between}
+.rx-question-inner{max-width:none}
+.rx-question-bg img{transition:object-position .9s ease,opacity .6s ease}
+.rx-goal-rent .rx-question-bg img{object-position:20% 40%}.rx-goal-live .rx-question-bg img{object-position:55% 60%}.rx-goal-invest .rx-question-bg img{object-position:90% 30%;opacity:.26}
+.rx-q-title{animation:rx-title-in .55s cubic-bezier(.2,.7,.2,1) both}
+.rx-q-sub{animation:sakan-rise .5s .08s ease both}
+.rx-q-body{animation:sakan-rise .5s .14s ease both}
+@keyframes rx-title-in{from{opacity:0;transform:translateY(18px);letter-spacing:6px}to{opacity:1;transform:none;letter-spacing:1px}}
+.rx-progress-bar button{position:relative;overflow:hidden;transition:background .3s ease}
+.rx-progress-bar button.now{background:rgba(255,138,61,.25)}
+.rx-progress-bar button.now:after{content:"";position:absolute;inset:0;background:var(--orange);transform-origin:left;animation:rx-fill .6s ease both}
+@keyframes rx-fill{from{transform:scaleX(0)}to{transform:scaleX(.5)}}
+.rx-progress-bar button.done:hover,.rx-progress-bar button.done:focus-visible{background:var(--orange-hi)}
+/* tactile choices */
+.rx-choice{min-height:56px;transition:transform .14s ease,border-color .16s ease,background .2s ease,box-shadow .2s ease}
+.rx-choice:active{transform:scale(.985)}
+.rx-choice.on{box-shadow:0 10px 30px -12px rgba(255,138,61,.55),inset 4px 0 0 var(--orange)}
+.rx-choice:focus-visible{border-color:var(--orange-hi)}
+.rx-choice.on .rx-choice-check{animation:rx-pop .32s cubic-bezier(.3,1.6,.5,1)}
+.rx-choice.on .rx-choice-icon{animation:rx-pop .32s cubic-bezier(.3,1.6,.5,1)}
+@keyframes rx-pop{0%{transform:scale(.6)}100%{transform:scale(1)}}
+.rx-seg button{min-height:36px;transition:background .15s ease,color .15s ease}
+.rx-money-input{transition:border-color .15s,box-shadow .2s}
+.rx-money-input:focus-within{box-shadow:0 0 0 4px rgba(255,138,61,.15)}
+.rx-horizon-row input{height:28px}
+.rx-cta{box-shadow:0 10px 26px -10px rgba(255,138,61,.7)}
+.rx-cta:active:not(:disabled){transform:scale(.97)}
+/* storyboard rail */
+.rx-rail{position:sticky;top:96px;margin-top:36px;background:rgba(23,19,17,.78);border:1px solid #33271f;border-radius:10px;padding:18px;backdrop-filter:blur(10px);animation:sakan-rise .5s .1s ease both}
+.rx-rail-kicker{display:block;font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);font-weight:700}
+.rx-rail-head strong{display:block;font:400 28px/1.05 'Bebas Neue',sans-serif;color:#fff1e4;letter-spacing:.6px;margin:6px 0 12px}
+.rx-rail-meter{height:4px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden}
+.rx-rail-meter i{display:block;height:100%;background:linear-gradient(90deg,var(--orange),var(--orange-hi));transform-origin:left;transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+.rx-rail-steps{list-style:none;padding:0;margin:16px 0;display:grid;gap:2px}
+.rx-rail-steps li>button,.rx-rail-steps li>span{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;padding:6px 6px;border-radius:6px;font-size:12px;color:var(--muted);text-align:left}
+.rx-rail-steps li.done>button{color:var(--ink)}
+.rx-rail-steps li.done>button:hover,.rx-rail-steps li.done>button:focus-visible{background:#2b1c12;color:var(--orange-hi)}
+.rx-rail-steps li.now>span{color:#fff1e4;font-weight:700;background:rgba(255,138,61,.12)}
+.rx-rail-dot{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:800;border:1.5px solid #4a3a2f;flex:none}
+.rx-rail-steps li.done .rx-rail-dot{background:var(--orange);border-color:var(--orange);color:#1a0d05}
+.rx-rail-steps li.now .rx-rail-dot{border-color:var(--orange);color:var(--orange)}
+.rx-rail-ticket{border-top:1px dashed #4a3a2f;padding-top:12px;display:grid;gap:8px}
+.rx-rail-line{display:flex;justify-content:space-between;gap:10px;font-size:11px}
+.rx-rail-line span{color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-size:10px;font-weight:700}
+.rx-rail-line strong{color:#fff1e4;text-align:right;font-weight:600}
+/* posters: richer exploration */
+.rx-poster-card{border-radius:8px}
+.rx-poster-media:focus-visible{outline:3px solid var(--gold);outline-offset:-3px}
+.rx-poster-card:focus-within .rx-poster-media img{transform:scale(1.3)!important}
+.rx-poster-title{transition:transform .25s ease}
+.rx-poster-card:hover .rx-poster-title,.rx-poster-card:focus-within .rx-poster-title{transform:translateY(-3px)}
+.rx-actions button{transition:transform .15s ease,background .15s ease,border-color .15s ease}
+.rx-actions button:active{transform:scale(.88)}
+.rx-actions button.on{animation:rx-pop .3s cubic-bezier(.3,1.6,.5,1)}
+.rx-poster.ranked .rx-rank{transition:-webkit-text-stroke-color .2s, color .2s}
+.rx-poster.ranked:hover .rx-rank,.rx-poster.ranked:focus-within .rx-rank{color:rgba(255,138,61,.18)}
+.rx-track{padding-top:10px}
+.rx-row h3{position:relative;padding-left:12px}
+.rx-row h3:before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:3px;border-radius:2px;background:var(--orange)}
+.rx-ghost{transition:background .15s ease,transform .12s ease}.rx-ghost:active{transform:scale(.97)}
+.rx-ghost[aria-pressed=true]{box-shadow:inset 0 0 0 1px rgba(255,138,61,.6)}
+.rx-results{animation:sakan-fade .4s ease}
+.rx-detail-grid .rx-panel{animation:sakan-rise .5s ease both}.rx-detail-grid .rx-panel+.rx-panel{animation-delay:.08s}
+.sakan-toast{border-left:4px solid var(--orange)}
+@media(max-width:1020px){.rx-question-layout{grid-template-columns:1fr}.rx-rail{display:none}}
+@media(hover:none){.rx-actions button,.rx-row-controls button{width:40px;height:40px}.rx-actions .rx-more{height:40px}}
+@media(prefers-reduced-motion:reduce){
+  .sakan-root *,.sakan-root *:before,.sakan-root *:after{animation:none!important;transition:none!important}
+  .rx-choice:hover,.rx-choice:active,.rx-cta:hover:not(:disabled),.rx-cta:active,.rx-poster-card:hover,.rx-poster-card:focus-within,.rx-poster-card:hover .rx-poster-title,.rx-poster-card:focus-within .rx-poster-title,.rx-actions button:active,.rx-ghost:active{transform:none!important}
+  .rx-poster-card:hover .rx-poster-media img,.rx-poster-card:focus-within .rx-poster-media img{transform:none!important}
+  .rx-billboard-img{animation:none!important}
+  .rx-progress-bar button.now:after{transform:scaleX(.5)}
+}
