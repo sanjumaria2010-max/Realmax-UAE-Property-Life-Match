@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
-import { Check, ChevronLeft, ChevronRight, MapPin, type LucideIcon } from 'lucide-react';
-import { areaKey, type Destination } from '../sakan-data';
+import { Check, ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
+import { type Destination } from '../sakan-data';
+import { DubaiStreetMap } from './DubaiStreetMap';
 
 export const imageUrl = `${import.meta.env.BASE_URL}images/sakan-neighborhood.jpg`;
 /** Decorative Dubai night photography (Pexels). Never used as listing imagery. */
@@ -49,27 +50,7 @@ export function Dialog({ titleId, children, onClose, wide = false }: { titleId: 
 }
 
 export function DubaiMap({ destinations }: { destinations: Destination[] }) {
-  const labels: Array<[string, number, number]> = [['Dubai Marina', 72, 45], ['Downtown', 52, 34], ['DIFC', 56, 30], ['Jumeirah', 43, 48], ['Dubai Hills', 40, 30], ['JVC', 49, 59], ['Creek', 69, 27], ['Palm', 29, 39]];
-  const coords: Record<string, [number, number]> = { DIFC: [58, 29], 'Dubai Marina': [72, 47], 'Al Barsha': [40, 48], 'Business Bay': [53, 36], 'Dubai Internet City': [63, 40], Jumeirah: [43, 48], JVC: [49, 59] };
-  const colors = ['#4cc9ff', '#91e4ff', '#d1f6ff', '#54a9ef', '#43e0e5'];
-  return <div className="sakan-map" role="img" aria-label="Illustrative schematic map of Dubai showing sample areas and destination markers">
-    <svg viewBox="0 0 640 300" preserveAspectRatio="xMidYMid slice">
-      <rect width="640" height="300" fill="#073650" />
-      <path d="M0 182 C50 165 78 180 130 163 C190 144 203 177 250 155 C310 126 325 146 368 121 C415 95 448 109 485 77 C523 44 563 46 640 8 L640 0 L0 0Z" fill="#0a4a6e" />
-      <path d="M23 18 C80 59 126 44 166 80 S238 103 273 135 S333 168 375 156 S444 137 479 166 S557 185 610 220" fill="none" stroke="#21668a" strokeWidth="17" strokeLinecap="round" />
-      <path d="M80 289 C102 245 127 214 180 200 S254 179 278 146 S332 94 385 86 S475 69 543 15" fill="none" stroke="#3595c2" strokeWidth="10" strokeLinecap="round" />
-      <path d="M320 276 C340 230 344 195 379 170 S429 148 470 121" fill="none" stroke="#9be5ff" strokeWidth="3" strokeDasharray="5 8" />
-      {labels.map(([label, x, y]) => <g key={label} transform={`translate(${x * 6.4},${y * 3})`}><circle r="3" fill="#80c6e7" /><text x="7" y="3" fill="#ffffff" fontSize="9" fontFamily="DM Sans, sans-serif">{label}</text></g>)}
-      {destinations.slice(0, 5).map((destination, i) => {
-        const [x, y] = coords[areaKey(destination.place)] || [55, 40];
-        return <g key={destination.id} transform={`translate(${x * 6.4},${y * 3})`}>
-          <circle r="13" fill={colors[i % colors.length]} opacity=".18" /><circle r="7" fill={colors[i % colors.length]} stroke="#032b46" strokeWidth="2" />
-          <text x="11" y="-9" fill="#ffffff" fontSize="8" fontWeight="700" fontFamily="DM Sans, sans-serif">{destination.label}</text>
-        </g>;
-      })}
-    </svg>
-    <div className="sakan-map-caption"><MapPin size={12} /> Schematic Dubai · illustrative locations, not navigation</div>
-  </div>;
+  return <DubaiStreetMap destinations={destinations} />;
 }
 
 export type Option<T> = { value: T; label: string; sub?: string; icon?: LucideIcon };
