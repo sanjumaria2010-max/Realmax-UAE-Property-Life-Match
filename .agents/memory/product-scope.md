@@ -79,4 +79,4 @@ The Rent a Home journey includes a preference for paying rent upfront or splitti
 
 **Why:** The user explicitly requested this rent-specific preference.
 
-**How to apply:** Keep the rent-payment schedule distinct from the deposit and fees budget. Do not imply a landlord supports a schedule unless its terms are actually known.
+**How to apply:** Keep the rent-payment schedule distinct from the deposit and fees budget. Rental result prices must reflect the preference: monthly amounts for monthly payments, annual upfront amounts for upfront payments. Do not imply a landlord supports a schedule unless its terms are actually known.

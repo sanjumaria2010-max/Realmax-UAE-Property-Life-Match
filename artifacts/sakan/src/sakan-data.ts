@@ -107,6 +107,15 @@ export const samplePlaces = [
 export const formatAED = (value: number) =>
   `AED ${Math.round(Number.isFinite(value) ? value : 0).toLocaleString('en-AE')}`;
 
+/** Display only: annual rent remains the source for budgets, deposits and ranking. */
+export function rentDisplay(annualRent: number, preference: RentPayment) {
+  const monthly = preference === 'monthly';
+  const amount = monthly ? annualRent / 12 : annualRent;
+  const label = monthly ? 'Monthly rent' : preference === 'upfront' ? 'Annual rent · upfront' : 'Annual rent';
+  const suffix = monthly ? ' / month' : preference === 'upfront' ? ' / year · upfront' : ' / year';
+  return { amount, label, suffix, summary: `${formatAED(amount)} ${label.toLowerCase()}` };
+}
+
 export function areaKey(place: string) {
   const value = place.toLowerCase();
   if (value.includes('marina')) return 'Dubai Marina';

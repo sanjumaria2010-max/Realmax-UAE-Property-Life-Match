@@ -34,3 +34,20 @@ test('unsupported payment values cannot be saved', () => {
     assert.throws(() => validation.validateBrief({ rentPayment }), /Invalid rentPayment/);
   }
 });
+test('monthly preference displays annual rent divided by twelve without mutating the source', () => {
+  const display = frontend.rentDisplay(120000, 'monthly');
+  assert.equal(display.amount, 10000);
+  assert.equal(display.label, 'Monthly rent');
+  assert.equal(display.suffix, ' / month');
+  assert.equal(display.summary, 'AED 10,000 monthly rent');
+  assert.equal(frontend.rentDisplay(115000, 'monthly').amount, 115000 / 12);
+});
+test('upfront and flexible preferences retain the annual amount with the appropriate labels', () => {
+  const upfront = frontend.rentDisplay(120000, 'upfront');
+  assert.equal(upfront.amount, 120000);
+  assert.equal(upfront.label, 'Annual rent · upfront');
+  assert.equal(upfront.suffix, ' / year · upfront');
+  const flexible = frontend.rentDisplay(120000, 'any');
+  assert.equal(flexible.amount, 120000);
+  assert.equal(flexible.label, 'Annual rent');
+});

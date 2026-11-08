@@ -15,7 +15,7 @@ import {
 } from '../sakan-data';
 import { Choice, Dialog, MoneyField, Row, cityImages, imageUrl, posterStyle } from './sakan-ui';
 import { MonitorDashboard, MonitorToggle } from './sakan-monitor';
-import { rentPaymentLabels } from '../sakan-data';
+import { rentPaymentLabels, rentDisplay } from '../sakan-data';
 import { clearAllMonitors, useMonitor } from '../hooks/use-monitor';
 import { canMonitorGoal, isMonitorHash, monitorHash, monitorPropertyFromHash, monitorScopeFromHash } from '../monitor-navigation';
 import { clearAllPriceAlerts } from '../hooks/use-price-alerts';
@@ -430,17 +430,24 @@ export function Sakan() {
 
   const chosen = catalog.find((listing) => listing.id === selected) || null;
   const matchById = new Map(matches.map((match) => [match.listing.id, match]));
-  const explainMatch = (why: string) => activeDests.length
-    ? why
-    : why.replace(/(?:about\s+|~)?0(?:\.0)?\s*(?:min|minutes)(?:\s+to your routine)?/gi, 'personal travel not included');
+  const preferredRent = (listing: Listing) => rentDisplay(listing.rent, draft.brief.rentPayment);
+  const rentDisplayNote = draft.brief.rentPayment === 'monthly'
+    ? 'Monthly amounts are annual rent ÷ 12, rounded to the nearest AED. Landlord payment terms and fees need confirmation.'
+    : 'Rent is shown annually. Upfront payment terms and fees need landlord confirmation.';
+  const explainMatch = (why: string, listing?: Listing | null) => {
+    const text = draft.goal === 'rent' && listing
+      ? why.replace(/^AED [\d,]+\s+annual rent/i, preferredRent(listing).summary) : why;
+    return activeDests.length ? text
+      : text.replace(/(?:about\s+|~)?0(?:\.0)?\s*(?:min|minutes)(?:\s+to your routine)?/gi, 'personal travel not included');
+  };
   const chosenMatch = chosen ? matchById.get(chosen.id) : undefined;
   const rawDetailScore = chosen ? chosenMatch || estimateScore(chosen, draft.goal, draft.brief, activeDests) : null;
-  const detailScore = rawDetailScore ? { ...rawDetailScore, why: explainMatch(rawDetailScore.why) } : null;
+  const detailScore = rawDetailScore ? { ...rawDetailScore, why: explainMatch(rawDetailScore.why, chosen) } : null;
   const detailPrincipal = chosen ? Math.max(0, chosen.price * 1.06 - draft.brief.downPayment) : 0;
   const detailMonthlyLoan = monthlyLoan(detailPrincipal);
   const detailAnnualOperating = chosen ? chosen.service + chosen.expenses : 0;
   const detailFinancialRows = chosen && detailScore ? draft.goal === 'rent' ? <>
-    <div className="sakan-breakdown-row"><span>Annual rent</span><strong>{formatAED(chosen.rent)}</strong></div>
+    <div className="sakan-breakdown-row"><span>{preferredRent(chosen).label}</span><strong>{formatAED(preferredRent(chosen).amount)}</strong></div>
     <div className="sakan-breakdown-row"><span>Illustrative deposit + agency/admin reserve (10%)</span><strong>{formatAED(chosen.rent * .1)}</strong></div>
     <div className="sakan-breakdown-row"><span>Your deposit & fees budget · rent payments excluded</span><strong>{formatAED(draft.brief.rentUpfront)}</strong></div>
   </> : draft.goal === 'live' ? <>
@@ -664,7 +671,7 @@ export function Sakan() {
   // ---------- Results ----------
   const poster = (listing: Listing, opts: { rank?: number; inMatches: boolean }) => {
     const result = matchById.get(listing.id);
-    const price = draft.goal === 'rent' ? listing.rent : listing.price;
+    const price = draft.goal === 'rent' ? preferredRent(listing).amount : listing.price;
     const style = posterStyle(listing.id);
     const isSaved = saved.includes(listing.id);
     return <article key={listing.id} className={`rx-poster${opts.rank !== undefined ? ' ranked' : ''}`} data-testid={`card-listing-${listing.id}`}>
@@ -678,8 +685,8 @@ export function Sakan() {
         {canMonitor && <MonitorToggle listing={listing} scope={monitorScope} onOpen={openPropertyMonitor} />}
         <div className="rx-poster-body">
           <div className="rx-meta">{listing.area} · {listing.beds === 0 ? 'Studio' : `${listing.beds} bed`} · {listing.type}</div>
-          <div className="rx-price">{formatAED(price)}<small>{draft.goal === 'rent' ? ' / year' : draft.goal === 'invest' && result ? ` · ${result.netYield.toFixed(1)}% sample net` : ''}</small></div>
-          {opts.inMatches && result ? <p className="rx-why">{explainMatch(result.why)}</p> : <p className="rx-why muted">Saved earlier · not in your current matches</p>}
+          <div className="rx-price">{formatAED(price)}<small>{draft.goal === 'rent' ? preferredRent(listing).suffix : draft.goal === 'invest' && result ? ` · ${result.netYield.toFixed(1)}% sample net` : ''}</small></div>
+          {opts.inMatches && result ? <p className="rx-why">{explainMatch(result.why, listing)}</p> : <p className="rx-why muted">Saved earlier · not in your current matches</p>}
           <div className="rx-actions">
             <button className={isSaved ? 'on' : ''} aria-pressed={isSaved} aria-label={isSaved ? `Remove ${listing.name} from My list` : `Save ${listing.name}`} data-testid={`button-save-${listing.id}`} onClick={() => void toggleSave(listing.id)}>{isSaved ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}</button>
             <button className={compare.includes(listing.id) ? 'on' : ''} aria-pressed={compare.includes(listing.id)} aria-label={`Compare ${listing.name}`} data-testid={`button-compare-${listing.id}`} onClick={() => void toggleCompare(listing.id)}><Scale size={15} /></button>
@@ -710,8 +717,9 @@ export function Sakan() {
         <div className="rx-kicker"><span className="rx-r">R</span> {label}</div>
         <h1>{listing.name}</h1>
         <div className="rx-billboard-meta"><strong>{listing.area}</strong><span>{listing.beds === 0 ? 'Studio' : `${listing.beds} bed`}</span><span>{listing.baths} bath</span><span>{listing.sqft.toLocaleString()} sqft</span><span className="rx-pill">{listing.ready ? 'Ready' : 'Off-plan'}</span><span>{listing.type}</span></div>
-        <div className="rx-billboard-price">{formatAED(draft.goal === 'rent' ? listing.rent : listing.price)} <small>{draft.goal === 'rent' ? 'annual rent' : 'sample purchase price'}</small></div>
-        <p>{match ? explainMatch(match.why) : 'Saved earlier · not in your current matches'}. {listing.description}</p>
+        <div className="rx-billboard-price">{formatAED(draft.goal === 'rent' ? preferredRent(listing).amount : listing.price)} <small>{draft.goal === 'rent' ? preferredRent(listing).label.toLowerCase() : 'sample purchase price'}</small></div>
+        <p>{match ? explainMatch(match.why, listing) : 'Saved earlier · not in your current matches'}. {listing.description}</p>
+        {draft.goal === 'rent' && <small className="sakan-note">{rentDisplayNote}</small>}
         <div className="rx-billboard-actions">
           {screen !== 'detail' && <button className="rx-cta" data-testid="button-featured-details" onClick={() => openDetail(listing.id)}><Info size={16} /> Full details</button>}
           <button className="rx-ghost" data-testid="button-featured-save" aria-pressed={saved.includes(listing.id)} onClick={() => void toggleSave(listing.id)}>{saved.includes(listing.id) ? <><BookmarkCheck size={16} /> On My list</> : <><Plus size={16} /> My list</>}</button>
@@ -804,7 +812,7 @@ export function Sakan() {
     ['In current matches', (listing) => resultsFresh && matchById.has(listing.id) ? 'Yes' : 'No'],
     ['Routine travel', (listing) => activeDests.length ? `~${travelFor(listing, activeDests)} min avg.` : 'Not included'],
     ...(draft.goal === 'rent' ? [
-      ['Annual rent', (listing: Listing) => formatAED(listing.rent)],
+      [rentDisplay(0, draft.brief.rentPayment).label, (listing: Listing) => formatAED(preferredRent(listing).amount)],
       ['Deposit + agency/admin reserve · excludes first rent cheque', (listing: Listing) => formatAED(listing.rent * .1)],
     ] as Array<[string, (listing: Listing) => string]> : []),
     ...(draft.goal === 'live' ? [
