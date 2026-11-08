@@ -26,3 +26,9 @@ The Monitor screen should be very simple and graph-first, with minimum/maximum a
 **Why:** The user explicitly disliked the cluttered monitoring screen and said the graph should be the first thing users see.
 
 **How to apply:** Keep secondary metrics, forecast controls, detailed tables and methodology from competing with the historical price graph.
+
+The user wants the whole product to look sleek, simple, user-friendly and as intuitive as possible, consistently across all pages.
+
+**Why:** The user explicitly extended the simplification request from Monitor to the entire product.
+
+**How to apply:** Prefer clear primary actions and consistent navigation, typography and form controls over dense screens or decorative effects when adding future features.

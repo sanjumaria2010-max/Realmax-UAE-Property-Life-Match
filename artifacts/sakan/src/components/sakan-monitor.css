@@ -96,3 +96,40 @@
 
 @media(max-width:900px){.rxm-grid{grid-template-columns:1fr}.rxm-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.rxm-graph{padding:14px}.rxm-now{text-align:left}.rxm-scenarios{grid-template-columns:1fr}.rxm-bar-end{margin-left:0}.rxm-select{flex-basis:100%;max-width:none}}
+
+/* ===== Realmax final layer: Monitor ===== */
+.rxm{--paper:#063a5a;--line:rgba(155,215,245,.22);--sea:#3fb6ea}
+.rxm-card,.rxm-bar{background:var(--paper);border-color:var(--line);border-radius:12px;box-shadow:none;animation:none}
+.rxm-bar{padding:10px}
+.rxm-icon{width:40px;height:40px;background:#0a4a6e;border-color:var(--line)}
+.rxm-select select{height:40px;background:#032b46;border:1px solid rgba(155,215,245,.45);font-size:14px}
+.rxm-seg{background:#032b46;border:1px solid var(--line)}
+.rxm-seg button{min-height:34px;padding:0 13px;color:#cfe6f3}
+.rxm-seg button.on{background:#3fb6ea;color:#022238}
+.rxm-btn{min-height:40px;padding:0 16px;background:#3fb6ea;color:#022238;font-size:13px;border-radius:10px}
+.rxm-btn:hover{background:#6cc9f1;transform:none}
+.rxm-btn.ghost{background:#0a4a6e;color:#fff;border:1px solid var(--line)}
+.rxm-btn.ghost:hover{background:#0d5a83}
+.rxm-btn.sm{min-height:40px}
+.rxm input{height:40px;background:#032b46;border-color:rgba(155,215,245,.45);font-size:14px}
+.rxm-field span,.rxm-muted,.rxm-chart-foot{font-size:12px;color:#cfe6f3}
+.rxm-alerts h3 svg{color:#9fdcf8}
+.rxm-tag{font-size:11px;letter-spacing:.8px}
+.rxm-tag.sample{background:#0a4a6e;color:#fff}
+.rxm-tag.preview{background:rgba(255,196,163,.16);color:#ffc4a3;border:1px solid rgba(255,196,163,.35)}
+.rxm-sim summary,.rxm-disc summary{min-height:40px;display:flex;align-items:center;font-size:13px}
+.rxm-meta dl div{font-size:13px}
+.rxm-facts dt{font-size:11px;color:#cfe6f3}
+.rxm-scenario,.rxm-state,.rxm-note{border:1px solid var(--line)}
+.rxm-note button{min-width:32px;min-height:32px}
+.rxm-link{min-height:32px}
+.rxm-toggle{animation:none}
+@media(max-width:620px){.rxm-bar>*{flex:1 1 auto}.rxm-row{flex-wrap:wrap}.rxm-row>*{flex:1 1 auto}}
+@media(max-width:620px){
+  .rxm-bar>.rxm-icon{flex:0 0 40px}
+  .rxm-bar>.rxm-select{flex:1 1 calc(100% - 50px);max-width:none}
+  .rxm-bar>.rxm-seg{flex:0 1 auto}
+  .rxm-bar .rxm-seg button{padding:0 8px}
+  .rxm-bar>.rxm-bar-end{flex:1 1 auto;display:flex;justify-content:flex-end}
+  .rxm-bar-end .rxm-btn{padding:0 10px;font-size:12px}
+}
