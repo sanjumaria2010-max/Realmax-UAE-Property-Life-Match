@@ -804,7 +804,7 @@ export function Sakan() {
     <header className="rx-topbar">
       <button className="rx-brand" data-testid="button-brand" onClick={() => void goHome()} aria-label="Realmax home">REALMAX</button>
       <nav className="rx-nav" aria-label="Main navigation">
-        <button data-testid="button-go-home" onClick={() => void goHome()} disabled={!workspaceReady || resetBusy}><Home size={15} aria-hidden="true" />Go to home</button>
+        <button data-testid="button-go-home" onClick={() => void goHome()} disabled={!workspaceReady || resetBusy}><Home size={15} aria-hidden="true" />Home</button>
         {resultsFresh && screen !== 'results' && <button data-testid="link-matches" onClick={() => setScreen('results')}>My matches</button>}
         <button data-testid="link-my-list" className={screen === 'privacy' ? 'active' : ''} onClick={async () => { if (await flushBeforeLeaving()) setScreen('privacy'); }}>My list{saved.length > 0 && <span className="rx-count">{saved.length}</span>}</button>
         {workspaceReady && canMonitor && <button data-testid="link-monitor" className={screen === 'monitor' ? 'active' : ''} disabled={catalogState !== 'ready'} onClick={async () => { if (await flushBeforeLeaving()) setScreen('monitor'); }}>Monitor<span className="rx-count rxm-nav-count" data-testid="text-monitor-count">{monitor.ids.length}</span></button>}
