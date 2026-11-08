@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
-import { Briefcase, Check, Church, Dumbbell, Heart, MapPin, Pencil, Plus, School, Search, Sparkles, Trash2, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { ArrowDown, ArrowUp, GripVertical, Briefcase, Check, Church, Dumbbell, Heart, MapPin, Pencil, Plus, School, Search, Sparkles, Trash2, X } from 'lucide-react';
 import { areaKey, type Destination } from '../sakan-data';
 import { KIND_OPTIONS, kindSlug, nearbySamplePlaces, samplePlacePoint } from '../sample-place-geometry';
 import { DubaiStreetMap } from './DubaiStreetMap';
+import { LIFE_ORDER_KEY, LIFE_ROLES, moveLifeEntry, reconcileLifeOrder, type LifePlaceEntry } from '../life-place-order';
 import './GuidedPlacePicker.css';
 
 export type GuidedPlacePickerProps = {
@@ -12,21 +13,34 @@ export type GuidedPlacePickerProps = {
   /** Validate + persist. Returns an error message, or '' on success. */
   onCommit: (destination: Destination, editingId: string | null) => string;
   onRemove: (id: string) => void;
+  onReorder: (ids: string[]) => void;
 };
 
 type Row = { key: string; id: string | null; kind: string; label: string; query: string; place: string | null };
 
 const kindIcon = { work: Briefcase, partner: Heart, school: School, worship: Church, sport: Dumbbell, custom: Sparkles } as const;
-const defaultLabel: Record<string, string> = { Work: 'My work', 'Partner work': 'Partner work', School: 'School', Worship: 'Prayer', Sport: 'Sport', Custom: 'Custom place' };
-const roleName: Record<string, string> = { Work: 'Work', 'Partner work': 'Partner', School: 'Child school', Worship: 'Prayer', Sport: 'Sport', Custom: 'Other' };
-const CORE = ['Work', 'Partner work', 'School'] as const;
+const defaultLabel: Record<string, string> = { Work: 'My work', 'Partner work': 'Partner work', School: 'School', Worship: 'Place of worship', Sport: 'Sports', Custom: 'Custom place' };
+const roleName: Record<string, string> = { Work: 'My work', 'Partner work': 'Partner work', School: 'School', Worship: 'Place of worship', Sport: 'Sports', Custom: 'Other' };
 const slugId = (s: string) => s.replace(/\W+/g, '-').toLowerCase();
 
-export function GuidedPlacePicker({ destinations, places, onCommit, onRemove }: GuidedPlacePickerProps) {
+export function GuidedPlacePicker({ destinations, places, onCommit, onRemove, onReorder }: GuidedPlacePickerProps) {
   const [row, setRow] = useState<Row | null>(null);
   const [tap, setTap] = useState<[number, number] | null>(null);
   const [focus, setFocus] = useState<{ key: string; place: string } | null>(null);
   const [error, setError] = useState('');
+  const [orderError, setOrderError] = useState('');
+  const [orderMessage, setOrderMessage] = useState('');
+  const [orderPreference, setOrderPreference] = useState<LifePlaceEntry[]>(() => {
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem(LIFE_ORDER_KEY) || '[]');
+      return Array.isArray(stored) ? stored.filter((entry): entry is LifePlaceEntry =>
+        entry && typeof entry.key === 'string' && typeof entry.kind === 'string' &&
+        (entry.id === undefined || typeof entry.id === 'string')) : [];
+    } catch { return []; }
+  });
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [dropKey, setDropKey] = useState<string | null>(null);
+  const dragRef = useRef<{ key: string; target: string | null } | null>(null);
   const seq = useRef(0);
   const nextKey = () => { seq.current += 1; return `r${seq.current}`; };
 
@@ -35,7 +49,54 @@ export function GuidedPlacePicker({ destinations, places, onCommit, onRemove }: 
     const q = (row?.query || '').trim().toLowerCase();
     return places.filter((p) => !q || p.toLowerCase().includes(q) || areaKey(p).toLowerCase().includes(q));
   }, [places, row?.query]);
-  const missingCore = CORE.filter((k) => !destinations.some((d) => d.kind === k));
+  const missingCore = LIFE_ROLES.filter((k) => !destinations.some((d) => d.kind === k));
+  const entries = useMemo(() => reconcileLifeOrder(orderPreference, destinations), [orderPreference, destinations]);
+  const visibleDestinations = useMemo(() => entries.flatMap((entry) => {
+    const destination = destinations.find((d) => d.id === entry.id);
+    return destination ? [destination] : [];
+  }), [entries, destinations]);
+  useEffect(() => {
+    const ids = visibleDestinations.map((d) => d.id);
+    if (ids.some((id, index) => id !== destinations[index]?.id)) onReorder(ids);
+  }, [visibleDestinations, destinations, onReorder]);
+
+  const move = (key: string, to: number) => {
+    const from = entries.findIndex((entry) => entry.key === key);
+    const next = moveLifeEntry(entries, from, to);
+    if (next === entries) return;
+    setOrderPreference(next);
+    setOrderMessage(`${roleName[entries[from].kind] || entries[from].kind} moved to position ${to + 1}.`);
+    try { localStorage.setItem(LIFE_ORDER_KEY, JSON.stringify(next)); setOrderError(''); }
+    catch { setOrderError('The order changed, but this browser could not save the layout for your next visit.'); }
+  };
+  const finishDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (drag?.target) move(drag.key, entries.findIndex((entry) => entry.key === drag.target));
+    dragRef.current = null; setDragging(null); setDropKey(null);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const orderingControls = (entry: LifePlaceEntry, index: number) => <div className="gpp-order-controls">
+    <button type="button" className="gpp-grip" aria-label={`Drag to reorder ${roleName[entry.kind] || entry.kind}`} title="Drag to reorder, or use arrow keys"
+      data-testid={`button-drag-${entry.key}`}
+      onKeyDown={(event) => { if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); move(entry.key, index + (event.key === 'ArrowUp' ? -1 : 1)); } }}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.preventDefault(); event.currentTarget.focus();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        dragRef.current = { key: entry.key, target: null }; setDragging(entry.key);
+      }}
+      onPointerMove={(event) => {
+        if (!dragRef.current) return;
+        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-life-key]')?.dataset.lifeKey ?? null;
+        dragRef.current.target = target; setDropKey(target);
+      }}
+      onPointerUp={finishDrag}
+      onPointerCancel={() => { dragRef.current = null; setDragging(null); setDropKey(null); }}><GripVertical size={16} /></button>
+    <div className="gpp-order-arrows">
+      <button type="button" aria-label={`Move ${roleName[entry.kind] || entry.kind} up`} disabled={index === 0} onClick={() => move(entry.key, index - 1)} data-testid={`button-move-up-${entry.key}`}><ArrowUp size={12} /></button>
+      <button type="button" aria-label={`Move ${roleName[entry.kind] || entry.kind} down`} disabled={index === entries.length - 1} onClick={() => move(entry.key, index + 1)} data-testid={`button-move-down-${entry.key}`}><ArrowDown size={12} /></button>
+    </div>
+  </div>;
 
   const focusOn = (place: string | null) => { if (place && samplePlacePoint(place)) setFocus({ key: nextKey(), place }); };
   const canSwitch = () => {
@@ -127,42 +188,47 @@ export function GuidedPlacePicker({ destinations, places, onCommit, onRemove }: 
 
   return <div className="gpp" data-testid="guided-place-picker">
     <div className="gpp-panel">
+      <p className="gpp-order-hint">Drag the grip or use the arrows to change the order.</p>
+      <span className="sr-only" role="status">{orderMessage}</span>
       <div className="gpp-rows" aria-live="polite">
-        {destinations.map((d, i) => {
-          const I = kindIcon[kindSlug(d.kind)];
-          if (row && row.id === d.id) return <div key={d.id} data-testid={`row-destination-${d.id}`}>{editor(row)}</div>;
-          return <div key={d.id} className={`gpp-row kind-${kindSlug(d.kind)}`} data-testid={`row-destination-${d.id}`}>
+        {entries.map((entry, index) => {
+          const d = destinations.find((destination) => destination.id === entry.id);
+          const I = kindIcon[kindSlug(entry.kind)];
+          const activeEditor = row && (entry.id ? row.id === entry.id : !row.id && row.kind === entry.kind);
+          return <div key={entry.key} data-life-key={entry.key} className={`gpp-sort-row${dragging === entry.key ? ' is-dragging' : ''}${dropKey === entry.key && dragging !== entry.key ? ' is-drop-target' : ''}`}>
+            {orderingControls(entry, index)}
+            {activeEditor ? <div data-testid={d ? `row-destination-${d.id}` : undefined}>{editor(row!)}</div>
+            : d ? <div className={`gpp-row kind-${kindSlug(d.kind)}`} data-testid={`row-destination-${d.id}`}>
             <button type="button" className="gpp-row-main" onClick={() => focusOn(d.place)} aria-label={`Show ${d.label} on map`} data-testid={`button-focus-destination-${d.id}`}>
-              <span className="gpp-num">{i + 1}</span>
+              <span className="gpp-num">{visibleDestinations.findIndex((item) => item.id === d.id) + 1}</span>
               <span className="gpp-row-text"><small><I size={11} /> {roleName[d.kind] || d.kind}</small><strong>{d.label}</strong><em>{d.place}</em></span>
             </button>
             <button type="button" className="sakan-icon-button" aria-label={`Edit ${d.label}`} onClick={() => edit(d)} data-testid={`button-edit-destination-${d.id}`}><Pencil size={14} /></button>
             <button type="button" className="sakan-icon-button" aria-label={`Remove ${d.label}`} onClick={() => { if (row?.id === d.id) cancel(); onRemove(d.id); }} data-testid={`button-remove-destination-${d.id}`}><Trash2 size={14} /></button>
+            </div>
+            : <button type="button" className={`gpp-slot kind-${kindSlug(entry.kind)}`} onClick={() => start(entry.kind)} data-testid={`button-add-${slugId(entry.kind)}`}>
+              <span className="gpp-ico"><I size={15} /></span><span><strong>{roleName[entry.kind] || entry.kind}</strong><small>Optional · tap to add</small></span><Plus size={16} />
+            </button>}
           </div>;
         })}
-        {row && !row.id && editor(row)}
-        {missingCore.filter((k) => !(row && !row.id && row.kind === k)).map((k) => {
-          const I = kindIcon[kindSlug(k)];
-          return <button type="button" key={k} className={`gpp-slot kind-${kindSlug(k)}`} onClick={() => start(k)} data-testid={`button-add-${slugId(k)}`}>
-            <span className="gpp-ico"><I size={15} /></span><span><strong>{k === 'Work' ? 'Where do you work?' : k === 'Partner work' ? 'Partner\u2019s work' : 'Children\u2019s school'}</strong><small>Optional · tap to add</small></span><Plus size={16} />
-          </button>;
-        })}
+        {row && !row.id && !entries.some((entry) => !entry.id && entry.kind === row.kind) && editor(row)}
       </div>
       <div className="gpp-more">
         <span className="gpp-label">Add another</span>
         <div className="gpp-chips">
-          {(['School', 'Worship', 'Sport', 'Custom', 'Work', 'Partner work'] as const).filter((k) => k !== 'Work' && k !== 'Partner work' ? true : !missingCore.includes(k)).map((k) => {
+          {(['Work', 'School', 'Partner work', 'Worship', 'Sport', 'Custom'] as const).filter((k) => !missingCore.includes(k as typeof LIFE_ROLES[number])).map((k) => {
             const I = kindIcon[kindSlug(k)];
             return <button type="button" key={k} className={`gpp-chip kind-${kindSlug(k)}`} onClick={() => start(k)} data-testid={`button-add-more-${slugId(k)}`}><I size={13} />{k === 'School' ? 'Another child' : roleName[k]}</button>;
           })}
         </div>
       </div>
       {error && <div className="sakan-error" role="alert" data-testid="status-picker-error">{error}</div>}
+      {orderError && <div className="sakan-error" role="alert">{orderError}</div>}
       <p className="gpp-note">Seven sample places are supported. Pins are approximate area centres, not live address lookup.</p>
     </div>
 
     <div className="gpp-mapwrap">
-      <DubaiStreetMap destinations={destinations} mono picker={{
+      <DubaiStreetMap destinations={visibleDestinations} mono picker={{
         places, candidate: row && row.place && !(row.id && destinations.some((d) => d.id === row.id && d.place === row.place)) ? row.place : null, tap, onPick: choose,
         onMapTap: (lat, lng) => { setTap([lat, lng]); setError(''); },
         activeId: row ? row.id : destinations.find((d) => d.place === focus?.place)?.id ?? null, activeKind: row?.kind ?? null,

@@ -44,3 +44,9 @@ Life entry should be input-first: simple work, partner and children/school input
 **Why:** The user found the previous map-first guided picker unintuitive and explicitly requested this replacement.
 
 **How to apply:** Keep household roles immediately visible, connect active inputs to map highlighting, and minimize steps to add a place. Do not restore the place-first/tag-later sequence. Preserve clear sample-location limitations until real place data is added.
+
+Use a restrained blue-and-white theme for life-entry controls and pins, not a different accent colour for each household role. Default role order is My work, School, Partner work, Place of worship, Sports; users can rearrange it.
+
+**Why:** The user explicitly rejected the many colours and asked to move these buttons to change their order.
+
+**How to apply:** Distinguish roles through names, icons and numbers rather than rainbow colours. Preserve user-defined order when places are added or edited.

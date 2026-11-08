@@ -18,6 +18,7 @@ import { MonitorDashboard, MonitorToggle } from './sakan-monitor';
 import { monitorStore, useMonitor } from '../hooks/use-monitor';
 import { priceAlertsStore } from '../hooks/use-price-alerts';
 import { GuidedPlacePicker } from './GuidedPlacePicker';
+import { reorderDestinations } from '../life-place-order';
 import './sakan.css';
 
 type Screen = 'questions' | 'results' | 'detail' | 'privacy' | 'monitor';
@@ -490,7 +491,10 @@ export function Sakan() {
   };
 
   const placesQuestion = <div className="rx-q-body">
-    <GuidedPlacePicker destinations={draft.destinations} places={places} onCommit={commitDestination} onRemove={(id) => updateDraft({ destinations: draft.destinations.filter((item) => item.id !== id) })} />
+    <GuidedPlacePicker destinations={draft.destinations} places={places} onCommit={commitDestination} onRemove={(id) => updateDraft({ destinations: draft.destinations.filter((item) => item.id !== id) })} onReorder={(ids) => {
+      const destinations = reorderDestinations(draft.destinations, ids);
+      if (destinations) updateDraft({ destinations });
+    }} />
   </div>;
 
   const rhythmQuestion = <div className="rx-q-body">

@@ -1,4 +1,4 @@
-.gpp,.sakan-geo{--k-work:#3fb6ea;--k-partner:#ff9fb8;--k-school:#ffd27a;--k-worship:#9cf0c4;--k-sport:#ffb07a;--k-custom:#c8d8ff}
+.gpp,.sakan-geo{--k-work:#3fb6ea;--k-partner:#3fb6ea;--k-school:#3fb6ea;--k-worship:#3fb6ea;--k-sport:#3fb6ea;--k-custom:#3fb6ea}
 .gpp .kind-work,.sakan-geo .kind-work{--k:var(--k-work)}.gpp .kind-partner,.sakan-geo .kind-partner{--k:var(--k-partner)}
 .gpp .kind-school,.sakan-geo .kind-school{--k:var(--k-school)}.gpp .kind-worship,.sakan-geo .kind-worship{--k:var(--k-worship)}
 .gpp .kind-sport,.sakan-geo .kind-sport{--k:var(--k-sport)}.gpp .kind-custom,.sakan-geo .kind-custom{--k:var(--k-custom)}
@@ -9,6 +9,18 @@
 .gpp .sakan-geo{height:min(640px,calc(100dvh - 120px));min-height:420px;border-radius:18px;background:#e6e6e6}
 
 .gpp-rows{display:flex;flex-direction:column;gap:8px}
+.gpp-order-hint{margin:0;color:var(--soft);font-size:12px}
+.gpp-sort-row{display:grid;grid-template-columns:48px minmax(0,1fr);gap:4px;align-items:start;border-radius:12px;border:1px solid transparent}
+.gpp-sort-row.is-dragging{opacity:.6}
+.gpp-sort-row.is-drop-target{border-color:#fff;background:rgba(63,182,234,.15)}
+.gpp-order-controls{display:flex;flex-direction:column;align-items:center;padding:3px 0}
+.gpp-grip,.gpp-order-arrows button{display:grid;place-items:center;border:0;background:transparent;color:#cfe6f3;border-radius:5px}
+.gpp-grip{width:44px;height:28px;touch-action:none;cursor:grab}
+.gpp-grip:active{cursor:grabbing}
+.gpp-order-arrows{display:flex;gap:1px}
+.gpp-order-arrows button{width:24px;min-height:28px;padding:0}
+.gpp-order-arrows button:disabled{opacity:.25;cursor:default}
+.gpp-grip:hover,.gpp-order-arrows button:not(:disabled):hover{background:#0d5a83;color:#fff}
 .gpp-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:2px;border:1px solid var(--line);border-left:4px solid var(--k);border-radius:12px;background:rgba(5,55,82,.85);padding:4px 6px 4px 0;animation:sakan-rise .2s ease}
 .gpp-row-main{display:flex;align-items:center;gap:12px;border:0;background:none;color:var(--ink);text-align:left;padding:8px 10px;min-width:0}
 .gpp-num{width:28px;height:28px;border-radius:50%;background:var(--k);color:#032b46;display:grid;place-items:center;font:800 12px 'Manrope',sans-serif;flex:none}
@@ -94,5 +106,12 @@
   .gpp-mapwrap{position:sticky;top:108px;z-index:5}
   .gpp .sakan-geo{height:28dvh;min-height:210px;max-height:250px;border-radius:12px}
   .gpp-editor,.gpp-row,.gpp-slot{scroll-margin-top:370px}
+}
+@media(max-width:480px){
+  .gpp-sort-row{grid-template-columns:48px minmax(0,1fr)}
+  .gpp-row{grid-template-columns:minmax(0,1fr) 30px 30px;padding-right:2px}
+  .gpp-row .sakan-icon-button{width:30px;min-width:30px}
+  .gpp-row-main{gap:7px;padding-left:7px}
+  .gpp-num{width:24px;height:24px}
 }
 @media(max-width:480px){.gpp-editor-head{grid-template-columns:30px minmax(0,1fr)}.gpp-labelinput{grid-column:1/-1}.gpp-actions>button{flex:1}.sakan-geo-sample b{display:none}.sakan-geo-sample.is-candidate b{display:block}}
