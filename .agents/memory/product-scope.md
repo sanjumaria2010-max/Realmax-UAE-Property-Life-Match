@@ -32,3 +32,9 @@ The user wants the whole product to look sleek, simple, user-friendly and as int
 **Why:** The user explicitly extended the simplification request from Monitor to the entire product.
 
 **How to apply:** Prefer clear primary actions and consistent navigation, typography and form controls over dense screens or decorative effects when adding future features.
+
+Do not show a right-hand storyboard or summary box on any questionnaire page.
+
+**Why:** The user explicitly said they do not want the storyboard and do not need that box at all, expanding the earlier landing-only removal to all steps.
+
+**How to apply:** Keep progress and navigation above or below the questions rather than reintroducing a side summary panel.

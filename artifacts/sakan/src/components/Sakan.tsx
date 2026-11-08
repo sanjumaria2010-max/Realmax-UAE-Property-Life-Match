@@ -14,7 +14,6 @@ import {
   travelFor, type Brief, type Destination, type Enquiry, type Goal, type Listing, type Match, type Priority,
 } from '../sakan-data';
 import { Choice, Dialog, DubaiMap, MoneyField, Row, cityImages, imageUrl, posterStyle } from './sakan-ui';
-import { JourneyRail, type BriefLine } from './sakan-journey';
 import { MonitorDashboard, MonitorToggle } from './sakan-monitor';
 import { monitorStore, useMonitor } from '../hooks/use-monitor';
 import { priceAlertsStore } from '../hooks/use-price-alerts';
@@ -594,18 +593,9 @@ export function Sakan() {
     }
   };
 
-  const stepLabels: Record<QKey, string> = { goal: 'Goal', use: 'Personal use', places: 'Places', rhythm: 'Rhythm', money: 'Budget', strategy: 'Strategy', risk: 'Stress test', home: 'Home', comfort: 'Preferences', review: 'Reveal' };
-  const railLines: BriefLine[] = [
-    { label: 'Goal', value: goalCopy[draft.goal].title, stepKey: 'goal' },
-    ...(isInvest ? [{ label: 'Use', value: draft.personalUse ? 'May live in it' : 'Pure investment', stepKey: 'use' }] : []),
-    ...(!isInvest || draft.personalUse ? [{ label: 'Places', value: draft.destinations.length ? `${draft.destinations.length} in your week` : 'Not included', stepKey: 'places' }] : []),
-    { label: 'Budget', value: formatAED(draft.goal === 'rent' ? b.rentBudget : draft.goal === 'live' ? b.buyBudget : b.capital) + (draft.goal === 'rent' ? ' / yr' : ''), stepKey: 'money' },
-    { label: 'Home', value: `${b.beds ? `${b.beds}+ bed` : 'Studio+'} · ${b.type === 'any' ? 'any type' : b.type}`, stepKey: 'home' },
-    { label: 'Lens', value: priorityLabel[draft.priority], stepKey: 'comfort' },
-  ];
   const questionView = <div className={`rx-question rx-goal-${draft.goal}`}>
     <div className="rx-question-bg" aria-hidden="true"><img src={draft.goal === 'invest' ? cityImages.skyline : cityImages.marina} alt="" /><span className="rx-city-glow" /></div>
-    <div className={`rx-question-layout${current === 'goal' ? ' rx-question-layout-no-rail' : ''}`}>
+    <div className="rx-question-layout rx-question-layout-no-rail">
     <div className="rx-question-inner" key={current}>
       <div className="rx-progress" aria-label={`Question ${qIndex + 1} of ${questionKeys.length}`}>
         <div className="rx-progress-label"><span>{String(qIndex + 1).padStart(2, '0')}</span> / {String(questionKeys.length).padStart(2, '0')} · {qText[current].kicker}</div>
@@ -622,7 +612,6 @@ export function Sakan() {
           : <button className="rx-cta" data-testid="button-next" onClick={goNext}>{current === 'places' && draft.destinations.length === 0 ? 'Skip places' : 'Next'} <ArrowRight size={16} /></button>}
       </div>
     </div>
-    {current !== 'goal' && <JourneyRail steps={questionKeys.map((key) => ({ key, label: stepLabels[key] }))} index={qIndex} lines={railLines} onJump={(key) => { setError(''); setQKey(key as QKey); }} />}
     </div>
   </div>;
 
