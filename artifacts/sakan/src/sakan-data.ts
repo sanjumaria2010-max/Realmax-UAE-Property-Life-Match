@@ -1,4 +1,8 @@
 export type Goal = 'rent' | 'live' | 'invest';
+export type RentPayment = 'upfront' | 'monthly' | 'any';
+export const rentPaymentLabels: Record<RentPayment, string> = {
+  upfront: 'Pay upfront', monthly: 'Pay monthly', any: 'No preference',
+};
 export type Priority = 'balanced' | 'commute' | 'cost' | 'risk';
 export type Destination = {
   id: string;
@@ -15,6 +19,7 @@ export type Destination = {
 export type Brief = {
   rentBudget: number;
   rentUpfront: number;
+  rentPayment: RentPayment;
   buyBudget: number;
   downPayment: number;
   monthlyPayment: number;
@@ -73,6 +78,7 @@ export type Enquiry = {
 export const initialBrief: Brief = {
   rentBudget: 115000,
   rentUpfront: 28000,
+  rentPayment: 'any',
   buyBudget: 1900000,
   downPayment: 550000,
   monthlyPayment: 12500,

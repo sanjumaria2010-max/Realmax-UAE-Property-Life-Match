@@ -6,7 +6,7 @@ export interface Destination {
   required: boolean; preferred: boolean;
 }
 export interface Brief {
-  rentBudget: number; rentUpfront: number; buyBudget: number; downPayment: number;
+  rentBudget: number; rentUpfront: number; rentPayment: "upfront" | "monthly" | "any"; buyBudget: number; downPayment: number;
   monthlyPayment: number; capital: number; strategy: "income" | "growth" | "balanced";
   horizon: number; vacancy: number; riskScenario: "steady" | "soft" | "stress";
   ready: string; beds: number; type: string; furnished: string; parking: string;
@@ -39,7 +39,7 @@ export const listings: Listing[] = rows.map(([id,name,area,beds,baths,sqft,price
   parking: true, vacancy: 8, fresh: "Illustrative sample assumptions · not live inventory",
 }));
 export const initialBrief: Brief = {
-  rentBudget:115000,rentUpfront:28000,buyBudget:1900000,downPayment:550000,monthlyPayment:12500,
+  rentBudget:115000,rentUpfront:28000,rentPayment:"any",buyBudget:1900000,downPayment:550000,monthlyPayment:12500,
   capital:1400000,strategy:"balanced",horizon:7,vacancy:6,riskScenario:"soft",ready:"any",beds:1,
   type:"any",furnished:"any",parking:"any",
 };

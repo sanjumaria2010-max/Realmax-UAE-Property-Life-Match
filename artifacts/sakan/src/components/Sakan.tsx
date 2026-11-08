@@ -15,6 +15,7 @@ import {
 } from '../sakan-data';
 import { Choice, Dialog, MoneyField, Row, cityImages, imageUrl, posterStyle } from './sakan-ui';
 import { MonitorDashboard, MonitorToggle } from './sakan-monitor';
+import { rentPaymentLabels } from '../sakan-data';
 import { clearAllMonitors, useMonitor } from '../hooks/use-monitor';
 import { canMonitorGoal, isMonitorHash, monitorHash, monitorPropertyFromHash, monitorScopeFromHash } from '../monitor-navigation';
 import { clearAllPriceAlerts } from '../hooks/use-price-alerts';
@@ -50,6 +51,7 @@ const normalizeDraft = (raw: unknown): WorkspaceDraft => {
   const value = objectValue(raw);
   const goal = (['rent', 'live', 'invest'].includes(String(value.goal)) ? value.goal : defaultDraft.goal) as Goal;
   const brief = { ...initialBrief, ...objectValue(value.brief) } as Brief;
+  if (!['upfront', 'monthly', 'any'].includes(brief.rentPayment)) brief.rentPayment = 'any';
   return {
     goal, brief,
     destinations: Array.isArray(value.destinations) ? value.destinations as Destination[] : firstDestinations,
@@ -246,7 +248,7 @@ export function Sakan() {
     if (key === 'money') {
       if (draft.goal === 'rent') {
         if (!(b.rentBudget > 0)) return 'Enter your annual rent ceiling in AED to continue.';
-        if (!(b.rentUpfront > 0)) return 'Enter the upfront amount you have available in AED.';
+        if (!(b.rentUpfront > 0)) return 'Enter your deposit and fees budget in AED.';
       } else if (draft.goal === 'live') {
         if (!(b.buyBudget > 0)) return 'Enter your purchase price ceiling in AED to continue.';
         if (!(b.downPayment > 0)) return 'Enter the cash you have available now in AED.';
@@ -440,7 +442,7 @@ export function Sakan() {
   const detailFinancialRows = chosen && detailScore ? draft.goal === 'rent' ? <>
     <div className="sakan-breakdown-row"><span>Annual rent</span><strong>{formatAED(chosen.rent)}</strong></div>
     <div className="sakan-breakdown-row"><span>Illustrative deposit + agency/admin reserve (10%)</span><strong>{formatAED(chosen.rent * .1)}</strong></div>
-    <div className="sakan-breakdown-row"><span>Your upfront boundary · first rent cheque excluded</span><strong>{formatAED(draft.brief.rentUpfront)}</strong></div>
+    <div className="sakan-breakdown-row"><span>Your deposit & fees budget · rent payments excluded</span><strong>{formatAED(draft.brief.rentUpfront)}</strong></div>
   </> : draft.goal === 'live' ? <>
     <div className="sakan-breakdown-row"><span>Sample purchase price</span><strong>{formatAED(chosen.price)}</strong></div>
     <div className="sakan-breakdown-row"><span>Illustrative acquisition costs (6%)</span><strong>{formatAED(chosen.price * .06)}</strong></div>
@@ -545,8 +547,14 @@ export function Sakan() {
     {draft.goal === 'rent' ? <>
       <div className="rx-money-grid">
         <MoneyField id="rent-budget" label="Annual rent ceiling" hint="Listings above this will be filtered out." value={b.rentBudget} step={1000} invalid={moneyInvalid && !(b.rentBudget > 0)} onChange={(value) => updateBrief('rentBudget', value)} />
-        <MoneyField id="rent-upfront" label="Upfront amount available" hint="Illustrative 10% deposit + agency/admin reserve. Excludes the first rent cheque." value={b.rentUpfront} step={1000} invalid={moneyInvalid && !(b.rentUpfront > 0)} onChange={(value) => updateBrief('rentUpfront', value)} />
+        <MoneyField id="rent-upfront" label="Deposit & fees budget" hint="Illustrative 10% deposit + agency/admin reserve. Excludes rent payments." value={b.rentUpfront} step={1000} invalid={moneyInvalid && !(b.rentUpfront > 0)} onChange={(value) => updateBrief('rentUpfront', value)} />
       </div>
+      <Choice label="How would you prefer to pay rent?" value={b.rentPayment} onChange={(value) => updateBrief('rentPayment', value)} options={[
+        { value: 'upfront', label: 'Pay upfront', sub: 'Annual rent in one payment' },
+        { value: 'monthly', label: 'Pay monthly', sub: 'Split rent across 12 payments' },
+        { value: 'any', label: 'No preference', sub: 'Open to either option' },
+      ]} />
+      <small className="sakan-note">Preference only—payment terms and any extra fees need landlord confirmation.</small>
       <div className="sakan-breakdown"><div className="sakan-breakdown-row"><span>Deposit + agency/admin planning at your ceiling (10%)</span><strong>{formatAED(b.rentBudget * .1)}</strong></div><div className="sakan-breakdown-row"><span>Remaining under your upfront limit</span><strong>{formatAED(Math.max(0, b.rentUpfront - b.rentBudget * .1))}</strong></div></div>
     </> : draft.goal === 'live' ? <>
       <div className="rx-money-grid three">
@@ -612,17 +620,18 @@ export function Sakan() {
         <Choice compact label="Ranking priority" value={draft.priority} onChange={(value) => updateDraft({ priority: value })} options={(['balanced', 'commute', 'cost', 'risk'] as Priority[]).map((value) => ({ value, label: priorityLabel[value] }))} />
       </div>;
       case 'review': {
-        const budget = draft.goal === 'rent' ? `${formatAED(b.rentBudget)} / year · ${formatAED(b.rentUpfront)} upfront` : draft.goal === 'live' ? `${formatAED(b.buyBudget)} · ${formatAED(b.downPayment)} cash · ${formatAED(b.monthlyPayment)}/mo` : formatAED(b.capital);
+        const budget = draft.goal === 'rent' ? `${formatAED(b.rentBudget)} / year · ${formatAED(b.rentUpfront)} deposit & fees reserve` : draft.goal === 'live' ? `${formatAED(b.buyBudget)} · ${formatAED(b.downPayment)} cash · ${formatAED(b.monthlyPayment)}/mo` : formatAED(b.capital);
         const items: Array<[string, string, QKey]> = [
           ['Goal', goalCopy[draft.goal].title + (isInvest ? draft.personalUse ? ' · may live in it' : ' · pure investment' : ''), 'goal'],
           ...(!isInvest || draft.personalUse ? [['Places', draft.destinations.length ? draft.destinations.map((item) => item.label).join(', ') : 'Skipped · travel not included', 'places'] as [string, string, QKey]] : []),
           ['Budget', budget, 'money'],
+          ...(draft.goal === 'rent' ? [['Rent payments', rentPaymentLabels[b.rentPayment], 'money'] as [string, string, QKey]] : []),
           ...(isInvest ? [['Investor lens', `${b.strategy} · ${b.horizon} years · ${b.vacancy}% vacancy · ${b.riskScenario}`, 'strategy'] as [string, string, QKey]] : []),
           ['Home', `${b.beds ? `${b.beds}+ bed` : 'Studio+'} · ${b.type === 'any' ? 'any type' : b.type} · ${b.ready === 'any' ? 'ready or off-plan' : b.ready === 'ready' ? 'ready only' : 'off-plan only'}`, 'home'],
           ['Preferences', `Furnishing ${b.furnished === 'any' ? 'any' : b.furnished === 'yes' ? 'furnished' : 'unfurnished'} · parking ${b.parking === 'yes' ? 'wanted' : 'any'} · ${priorityLabel[draft.priority]}`, 'comfort'],
         ];
         return <div className="rx-q-body">
-          <div className="rx-review">{items.map(([label, value, key]) => <div className="rx-review-item" key={label}><span>{label}</span><strong>{value}</strong><button className="sakan-textbutton" data-testid={`button-edit-${key}`} onClick={() => { setError(''); setQKey(key); }}><Pencil size={12} /> Edit</button></div>)}</div>
+          <div className="rx-review">{items.map(([label, value, key]) => <div className="rx-review-item" key={label}><span>{label}</span><strong>{value}</strong><button className="sakan-textbutton" data-testid={`button-edit-${key}${label === 'Rent payments' ? '-payment' : ''}`} onClick={() => { setError(''); setQKey(key); }}><Pencil size={12} /> Edit</button></div>)}</div>
           <div className="sakan-sample-banner"><BadgeCheck size={14} />Your brief is stored in a private server-side browser workspace. Places are only used to calculate sample rankings.</div>
           {rankingError && <div className="sakan-error" role="alert">Could not calculate matches. {rankingError}</div>}
         </div>;

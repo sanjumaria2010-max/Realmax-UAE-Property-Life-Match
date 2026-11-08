@@ -12,6 +12,7 @@ export function validateBrief(raw: Record<string, unknown>): Brief {
     if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) throw new Error(`Invalid ${field}: use a number between ${min} and ${max}.`);
   }
   const enums: Record<string,string[]> = {
+    rentPayment:["upfront","monthly","any"],
     strategy:["income","growth","balanced"],riskScenario:["steady","soft","stress"],
     ready:["any","ready","offplan"],type:["any","Apartment","Townhouse"],
     furnished:["any","yes","no"],parking:["any","yes","no"],

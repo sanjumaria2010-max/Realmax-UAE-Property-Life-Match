@@ -74,3 +74,9 @@ The map must match the luxury blue-and-white look of the whole app, rather than 
 **Why:** After trying the sea/sand/gold palette, the user said its colours clash with Realmax's “luxury, blue, white, posh” design and asked to sync the map with the app.
 
 **How to apply:** Keep water, land, roads, map controls and pins in a coherent ocean-blue, pale-blue and white family. Avoid warm or rainbow accents on the map.
+
+The Rent a Home journey includes a preference for paying rent upfront or splitting it monthly.
+
+**Why:** The user explicitly requested this rent-specific preference.
+
+**How to apply:** Keep the rent-payment schedule distinct from the deposit and fees budget. Do not imply a landlord supports a schedule unless its terms are actually known.
