@@ -16,6 +16,7 @@ import {
 import { Choice, Dialog, MoneyField, Row, cityImages, imageUrl, posterStyle } from './sakan-ui';
 import { MonitorDashboard, MonitorToggle } from './sakan-monitor';
 import { monitorStore, useMonitor } from '../hooks/use-monitor';
+import { canMonitorGoal, isMonitorHash, monitorHash, monitorPropertyFromHash } from '../monitor-navigation';
 import { priceAlertsStore } from '../hooks/use-price-alerts';
 import { GuidedPlacePicker } from './GuidedPlacePicker';
 import { reorderDestinations } from '../life-place-order';
@@ -74,7 +75,8 @@ export function Sakan() {
   const [compare, setCompare] = useState<string[]>([]);
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [qKey, setQKey] = useState<QKey>(() => typeof window !== 'undefined' && window.location.hash === '#places' ? 'places' : 'goal');
-  const [screen, setScreen] = useState<Screen>(() => typeof window !== 'undefined' && window.location.hash === '#monitor' ? 'monitor' : 'questions');
+  const [screen, setScreen] = useState<Screen>(() => typeof window !== 'undefined' && isMonitorHash(window.location.hash) ? 'monitor' : 'questions');
+  const [monitorPropertyId, setMonitorPropertyId] = useState<string | null>(() => typeof window !== 'undefined' ? monitorPropertyFromHash(window.location.hash) : null);
   const monitor = useMonitor();
   const [selected, setSelected] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
@@ -104,6 +106,7 @@ export function Sakan() {
   const enquiryRequestIdRef = useRef<string | null>(null);
   const resetInProgressRef = useRef(false);
   const isInvest = draft.goal === 'invest';
+  const canMonitor = canMonitorGoal(draft.goal);
   const activeDests = isInvest && !draft.personalUse ? [] : draft.destinations;
   const resultsFresh = matchedKey !== '' && matchedKey === keyFor(draft.goal, draft.brief, activeDests, draft.priority);
 
@@ -186,10 +189,16 @@ export function Sakan() {
   }, [toast]);
   useEffect(() => { window.scrollTo({ top: 0 }); }, [screen, qKey]);
   useEffect(() => {
+    if (workspaceReady && !canMonitor && screen === 'monitor') {
+      setScreen('questions');
+      setQKey('goal');
+    }
+  }, [workspaceReady, canMonitor, screen]);
+  useEffect(() => {
     const url = window.location.pathname + window.location.search;
-    if (screen === 'monitor' && window.location.hash !== '#monitor') window.history.replaceState(null, '', url + '#monitor');
-    else if ((screen !== 'monitor' && window.location.hash === '#monitor') || (window.location.hash === '#places' && (screen !== 'questions' || qKey !== 'places'))) window.history.replaceState(null, '', url);
-  }, [screen, qKey]);
+    if (screen === 'monitor' && workspaceReady && canMonitor && window.location.hash !== monitorHash(monitorPropertyId)) window.history.replaceState(null, '', url + monitorHash(monitorPropertyId));
+    else if ((screen !== 'monitor' && isMonitorHash(window.location.hash)) || (window.location.hash === '#places' && (screen !== 'questions' || qKey !== 'places'))) window.history.replaceState(null, '', url);
+  }, [screen, qKey, workspaceReady, canMonitor, monitorPropertyId]);
 
   const updateDraft = (patch: Partial<WorkspaceDraft>) => {
     touch();
@@ -469,6 +478,12 @@ export function Sakan() {
     finally { setEnquiryBusy(false); }
   };
   const openDetail = (id: string) => { setSelected(id); setScreen('detail'); };
+  const openPropertyMonitor = (id: string) => {
+    if (!canMonitor || !catalog.some((listing) => listing.id === id)) return;
+    monitor.add(id);
+    setMonitorPropertyId(id);
+    setScreen('monitor');
+  };
 
   // ---------- Question content ----------
   const b = draft.brief;
@@ -636,7 +651,7 @@ export function Sakan() {
           <span className="rx-tag">{listing.ready ? 'Ready' : 'Off-plan'}</span>
           <span className="rx-poster-title">{listing.name}</span>
         </button>
-        <MonitorToggle listing={listing} />
+        {canMonitor && <MonitorToggle listing={listing} onOpen={openPropertyMonitor} />}
         <div className="rx-poster-body">
           <div className="rx-meta">{listing.area} · {listing.beds === 0 ? 'Studio' : `${listing.beds} bed`} · {listing.type}</div>
           <div className="rx-price">{formatAED(price)}<small>{draft.goal === 'rent' ? ' / year' : draft.goal === 'invest' && result ? ` · ${result.netYield.toFixed(1)}% sample net` : ''}</small></div>
@@ -677,7 +692,7 @@ export function Sakan() {
           {screen !== 'detail' && <button className="rx-cta" data-testid="button-featured-details" onClick={() => openDetail(listing.id)}><Info size={16} /> Full details</button>}
           <button className="rx-ghost" data-testid="button-featured-save" aria-pressed={saved.includes(listing.id)} onClick={() => void toggleSave(listing.id)}>{saved.includes(listing.id) ? <><BookmarkCheck size={16} /> On My list</> : <><Plus size={16} /> My list</>}</button>
           <button className="rx-ghost" aria-pressed={compare.includes(listing.id)} onClick={() => void toggleCompare(listing.id)}><Scale size={16} /> {compare.includes(listing.id) ? 'In compare' : 'Compare'}</button>
-          <MonitorToggle listing={listing} variant="ghost" />
+          {canMonitor && <MonitorToggle listing={listing} variant="ghost" onOpen={openPropertyMonitor} />}
           {screen === 'detail' && <button className="rx-ghost" data-testid="button-detail-enquiry" onClick={() => openEnquiry(listing)}>Record an enquiry</button>}
         </div>
       </div>
@@ -792,13 +807,13 @@ export function Sakan() {
         <button data-testid="button-go-home" onClick={() => void goHome()} disabled={!workspaceReady || resetBusy}><Home size={15} aria-hidden="true" />Go to home</button>
         {resultsFresh && screen !== 'results' && <button data-testid="link-matches" onClick={() => setScreen('results')}>My matches</button>}
         <button data-testid="link-my-list" className={screen === 'privacy' ? 'active' : ''} onClick={async () => { if (await flushBeforeLeaving()) setScreen('privacy'); }}>My list{saved.length > 0 && <span className="rx-count">{saved.length}</span>}</button>
-        <button data-testid="link-monitor" className={screen === 'monitor' ? 'active' : ''} disabled={catalogState !== 'ready'} onClick={async () => { if (await flushBeforeLeaving()) setScreen('monitor'); }}>Monitor<span className="rx-count rxm-nav-count" data-testid="text-monitor-count">{monitor.ids.length}</span></button>
+        {workspaceReady && canMonitor && <button data-testid="link-monitor" className={screen === 'monitor' ? 'active' : ''} disabled={catalogState !== 'ready'} onClick={async () => { if (await flushBeforeLeaving()) setScreen('monitor'); }}>Monitor<span className="rx-count rxm-nav-count" data-testid="text-monitor-count">{monitor.ids.length}</span></button>}
         <button data-testid="link-how" onClick={() => setModal('how')}>How it works</button>
         <span className={`save-status ${saveState}`} role="status" data-testid="status-save">{saveStatus}{saveState === 'error' && <button onClick={() => void saveNow().catch((saveError) => setError(errorText(saveError)))}>Retry</button>}</span>
       </nav>
     </header>
     <main>
-      {monitor.error && screen !== 'monitor' && <div className="sakan-error" role="alert">{monitor.error} <button className="sakan-textbutton" onClick={monitor.dismissError}>Dismiss</button></div>}
+      {canMonitor && monitor.error && screen !== 'monitor' && <div className="sakan-error" role="alert">{monitor.error} <button className="sakan-textbutton" onClick={monitor.dismissError}>Dismiss</button></div>}
       {catalogState === 'loading' ? <div className="rx-page"><div className="sakan-empty loading-card" role="status"><div className="sakan-spinner" /><h2>Preparing Realmax</h2><p>Loading the sample catalogue and your private workspace.</p></div></div>
         : catalogState === 'error' ? <div className="rx-page"><div className="sakan-empty" role="alert"><h2>Could not load Realmax</h2><p>{error}</p><button className="rx-cta" onClick={() => window.location.reload()}>Try again</button></div></div>
           : <>
@@ -806,7 +821,7 @@ export function Sakan() {
             {screen === 'results' && resultView}
             {screen === 'detail' && detailView}
             {screen === 'privacy' && privacyView}
-            {screen === 'monitor' && <MonitorDashboard catalog={catalog} onOpenDetail={openDetail} onBack={() => setScreen(resultsFresh ? 'results' : 'questions')} />}
+            {screen === 'monitor' && canMonitor && <MonitorDashboard catalog={catalog} propertyId={monitorPropertyId} onPropertyChange={setMonitorPropertyId} onOpenDetail={openDetail} onBack={() => setScreen(resultsFresh ? 'results' : 'questions')} />}
           </>}
     </main>
     <footer className="sakan-footer">Realmax is a decision-making prototype. Listings, prices, rents, travel times, yields and images are illustrative sample data, not live market information or financial advice. <span className="rx-credit">City photography: <a href="https://www.pexels.com/photo/6535465/" target="_blank" rel="noreferrer">Pexels 6535465</a> and <a href="https://www.pexels.com/photo/3680908/" target="_blank" rel="noreferrer">Pexels 3680908</a>, decorative only, not listings.</span></footer>

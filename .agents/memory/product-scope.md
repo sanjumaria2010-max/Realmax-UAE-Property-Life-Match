@@ -21,6 +21,12 @@ For property monitoring, the user chose clearly labelled sample data for histori
 
 **How to apply:** Do not imply monitoring uses verified transaction history or a live predictive model. Keep fictional history and assumption-based future scenarios clearly distinguished.
 
+Monitor is available only in Buy to live and Invest, never in Rent. Clicking Monitor on a property should immediately open that property's monitoring screen, including when it is already monitored.
+
+**Why:** The user explicitly restricted Monitor to the buying/investing workflows and asked for direct property-specific navigation.
+
+**How to apply:** Hide both the Monitor navigation and property actions in Rent. Keep monitoring removal inside the dashboard rather than making a property-card click silently stop tracking.
+
 The Monitor screen should be very simple and graph-first, with minimum/maximum alert controls and property metadata on the right, and historical information below.
 
 **Why:** The user explicitly disliked the cluttered monitoring screen and said the graph should be the first thing users see.

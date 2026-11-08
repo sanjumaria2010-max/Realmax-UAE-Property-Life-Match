@@ -11,16 +11,15 @@ import {
 } from '../monitor-data';
 import './sakan-monitor.css';
 
-export function MonitorToggle({ listing, variant = 'chip' }: { listing: Listing; variant?: 'chip' | 'ghost' }) {
-  const { isMonitored, toggle } = useMonitor();
+export function MonitorToggle({ listing, variant = 'chip', onOpen }: { listing: Listing; variant?: 'chip' | 'ghost'; onOpen: (id: string) => void }) {
+  const { isMonitored } = useMonitor();
   const on = isMonitored(listing.id);
   return <button
     type="button"
     className={variant === 'ghost' ? 'rx-ghost rxm-ghost' : `rxm-toggle${on ? ' on' : ''}`}
-    aria-pressed={on}
-    aria-label={on ? `Stop monitoring ${listing.name}` : `Monitor ${listing.name}`}
+    aria-label={`Open monitoring for ${listing.name}`}
     data-testid={`button-monitor-${listing.id}`}
-    onClick={(event) => { event.stopPropagation(); toggle(listing.id); }}
+    onClick={(event) => { event.stopPropagation(); onOpen(listing.id); }}
   >{on ? <Check size={variant === 'ghost' ? 16 : 13} /> : <Activity size={variant === 'ghost' ? 16 : 13} />}{on ? 'Monitoring' : 'Monitor'}</button>;
 }
 
@@ -44,20 +43,19 @@ const MetricSeg = Seg<MonitorMetric>;
 const RangeSeg = Seg<2 | 3>;
 const HorizonSeg = Seg<1 | 2 | 3>;
 
-export function MonitorDashboard({ catalog, onOpenDetail, onBack }: { catalog: Listing[]; onOpenDetail: (id: string) => void; onBack: () => void }) {
+export function MonitorDashboard({ catalog, propertyId, onPropertyChange, onOpenDetail, onBack }: { catalog: Listing[]; propertyId: string | null; onPropertyChange: (id: string) => void; onOpenDetail: (id: string) => void; onBack: () => void }) {
   const { ids, error, add, remove, dismissError } = useMonitor();
   const alerts = usePriceAlerts();
   const monitored = useMemo(() => ids.flatMap((id) => { const l = catalog.find((x) => x.id === id); return l ? [l] : []; }), [ids, catalog]);
   const missing = ids.filter((id) => !catalog.some((x) => x.id === id));
   const available = catalog.filter((l) => !ids.includes(l.id));
-  const [picked, setPicked] = useState<string | null>(null);
   const [metric, setMetric] = useState<MonitorMetric>('sale');
   const [range, setRange] = useState<2 | 3>(3);
   const [horizon, setHorizon] = useState<1 | 2 | 3>(2);
   const [showForecast, setShowForecast] = useState(false);
   const [showTable, setShowTable] = useState(false);
 
-  const active = catalog.find((l) => l.id === picked) || monitored[0] || catalog[0] || null;
+  const active = catalog.find((l) => l.id === propertyId) || monitored[0] || catalog[0] || null;
   const isMonitored = !!active && ids.includes(active.id);
 
   const model = useMemo(() => {
@@ -137,7 +135,7 @@ export function MonitorDashboard({ catalog, onOpenDetail, onBack }: { catalog: L
       <button className="rxm-icon" onClick={onBack} aria-label="Back" data-testid="button-monitor-back"><ArrowLeft size={16} /></button>
       <label className="rxm-select">
         <span className="rxm-sr">Property</span>
-        <select value={active.id} onChange={(e) => setPicked(e.target.value)} data-testid="select-monitor-property">
+        <select value={active.id} onChange={(e) => onPropertyChange(e.target.value)} data-testid="select-monitor-property">
           {monitored.length > 0 && <optgroup label={`Monitoring (${monitored.length})`}>
             {monitored.map((l) => <option key={l.id} value={l.id}>{l.name} · {l.area}</option>)}
           </optgroup>}
