@@ -37,7 +37,7 @@ const pointFor = (d: Destination) => {
   return L.latLng(base[0], base[1]);
 };
 
-export function DubaiStreetMap({ destinations, picker, mono = false, children }: { destinations: Destination[]; picker?: MapPicker; mono?: boolean; children?: ReactNode }) {
+export function DubaiStreetMap({ destinations, picker, children }: { destinations: Destination[]; picker?: MapPicker; children?: ReactNode }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const tiles = useRef<L.TileLayer | null>(null);
@@ -65,9 +65,9 @@ export function DubaiStreetMap({ destinations, picker, mono = false, children }:
     if (!el.current) return;
     const m = L.map(el.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: false });
     m.attributionControl.setPrefix(false);
-    const t = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const t = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 18, minZoom: 9,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+      attribution: 'Tiles &copy; <a href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer" target="_blank" rel="noopener noreferrer" title="Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, and the GIS User Community">Esri &amp; contributors</a> · &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>',
     });
     t.on('tileerror', () => { errors.current += 1; if (errors.current >= 4) setFailed(true); });
     t.on('loading', () => { errors.current = 0; });
@@ -166,7 +166,7 @@ export function DubaiStreetMap({ destinations, picker, mono = false, children }:
   const reset = () => { const m = map.current; if (!m) return; if (bounds.current) m.fitBounds(bounds.current, { maxZoom: 13 }); else m.setView([25.15, 55.22], 11); };
   const retry = () => { errors.current = 0; setFailed(false); tiles.current?.redraw(); };
 
-  return <div className={`sakan-geo${picking ? ' is-picking' : ''}${mono ? ' is-mono' : ''}`} data-testid="map-dubai">
+  return <div className={`sakan-geo is-familiar${picking ? ' is-picking' : ''}`} data-testid="map-dubai">
     <div ref={el} className="sakan-geo-canvas" role="region" aria-label={picking
       ? `Street map of Dubai. ${destinations.length} saved places and supported sample places at approximate area centres. Tap the map to see nearby supported places, or use the list.`
       : `Street map of Dubai with ${destinations.length} numbered destination pins at approximate area centres`} />
@@ -182,6 +182,6 @@ export function DubaiStreetMap({ destinations, picker, mono = false, children }:
       <button type="button" className="sakan-primary" data-testid="button-map-retry" onClick={retry}><RefreshCw size={14} /> Retry</button>
     </div>}
     <ol className="sr-only">{destinations.map((d, i) => <li key={d.id}>{i + 1}. {d.label}, {areaKey(d.place)} area</li>)}</ol>
-    <div className="sakan-map-caption sakan-geo-caption"><MapPin size={12} /> Approximate area centres, not addresses · sample travel data</div>
+    <div className="sakan-map-caption sakan-geo-caption" title="Prototype pins mark approximate area centres, not exact building addresses"><MapPin size={12} /> Sample locations</div>
   </div>;
 }

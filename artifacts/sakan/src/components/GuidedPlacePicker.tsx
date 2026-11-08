@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { ArrowDown, ArrowUp, GripVertical, Briefcase, Check, Church, Dumbbell, Heart, MapPin, Pencil, Plus, School, Search, Sparkles, Trash2, X } from 'lucide-react';
+import { Briefcase, Check, Church, Dumbbell, Heart, MapPin, Pencil, Plus, School, Search, Sparkles, Trash2, X } from 'lucide-react';
 import { areaKey, type Destination } from '../sakan-data';
 import { KIND_OPTIONS, kindSlug, nearbySamplePlaces, samplePlacePoint } from '../sample-place-geometry';
 import { DubaiStreetMap } from './DubaiStreetMap';
@@ -76,7 +76,7 @@ export function GuidedPlacePicker({ destinations, places, onCommit, onRemove, on
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
   const orderingControls = (entry: LifePlaceEntry, index: number) => <div className="gpp-order-controls">
-    <button type="button" className="gpp-grip" aria-label={`Drag to reorder ${roleName[entry.kind] || entry.kind}`} title="Drag to reorder, or use arrow keys"
+    <button type="button" className="gpp-grip" aria-label={`Reorder ${roleName[entry.kind] || entry.kind}`} aria-describedby="gpp-reorder-help" title="Reorder"
       data-testid={`button-drag-${entry.key}`}
       onKeyDown={(event) => { if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); move(entry.key, index + (event.key === 'ArrowUp' ? -1 : 1)); } }}
       onPointerDown={(event) => {
@@ -91,11 +91,9 @@ export function GuidedPlacePicker({ destinations, places, onCommit, onRemove, on
         dragRef.current.target = target; setDropKey(target);
       }}
       onPointerUp={finishDrag}
-      onPointerCancel={() => { dragRef.current = null; setDragging(null); setDropKey(null); }}><GripVertical size={16} /></button>
-    <div className="gpp-order-arrows">
-      <button type="button" aria-label={`Move ${roleName[entry.kind] || entry.kind} up`} disabled={index === 0} onClick={() => move(entry.key, index - 1)} data-testid={`button-move-up-${entry.key}`}><ArrowUp size={12} /></button>
-      <button type="button" aria-label={`Move ${roleName[entry.kind] || entry.kind} down`} disabled={index === entries.length - 1} onClick={() => move(entry.key, index + 1)} data-testid={`button-move-down-${entry.key}`}><ArrowDown size={12} /></button>
-    </div>
+      onPointerCancel={() => { dragRef.current = null; setDragging(null); setDropKey(null); }}>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.5" /><circle cx="10" cy="4" r="1.5" /><circle cx="4" cy="10" r="1.5" /><circle cx="10" cy="10" r="1.5" /></svg>
+    </button>
   </div>;
 
   const focusOn = (place: string | null) => { if (place && samplePlacePoint(place)) setFocus({ key: nextKey(), place }); };
@@ -188,7 +186,7 @@ export function GuidedPlacePicker({ destinations, places, onCommit, onRemove, on
 
   return <div className="gpp" data-testid="guided-place-picker">
     <div className="gpp-panel">
-      <p className="gpp-order-hint">Drag the grip or use the arrows to change the order.</p>
+      <span className="sr-only" id="gpp-reorder-help">Drag to reorder, or use the up and down arrow keys while focused.</span>
       <span className="sr-only" role="status">{orderMessage}</span>
       <div className="gpp-rows" aria-live="polite">
         {entries.map((entry, index) => {
@@ -224,11 +222,11 @@ export function GuidedPlacePicker({ destinations, places, onCommit, onRemove, on
       </div>
       {error && <div className="sakan-error" role="alert" data-testid="status-picker-error">{error}</div>}
       {orderError && <div className="sakan-error" role="alert">{orderError}</div>}
-      <p className="gpp-note">Seven sample places are supported. Pins are approximate area centres, not live address lookup.</p>
+      <p className="gpp-note">Prototype · Sample places, approximate locations.</p>
     </div>
 
     <div className="gpp-mapwrap">
-      <DubaiStreetMap destinations={visibleDestinations} mono picker={{
+      <DubaiStreetMap destinations={visibleDestinations} picker={{
         places, candidate: row && row.place && !(row.id && destinations.some((d) => d.id === row.id && d.place === row.place)) ? row.place : null, tap, onPick: choose,
         onMapTap: (lat, lng) => { setTap([lat, lng]); setError(''); },
         activeId: row ? row.id : destinations.find((d) => d.place === focus?.place)?.id ?? null, activeKind: row?.kind ?? null,

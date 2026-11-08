@@ -39,9 +39,9 @@ Do not show a right-hand storyboard or summary box on any questionnaire page.
 
 **How to apply:** Keep progress and navigation above or below the questions rather than reintroducing a side summary panel.
 
-Life entry should be input-first: simple work, partner and children/school inputs on the left, with a large black-and-white, Uber-like map on the right that responds as places are selected.
+Life entry should be input-first: simple work, partner and children/school inputs on the left, with a large map on the right that responds as places are selected.
 
-**Why:** The user found the previous map-first guided picker unintuitive and explicitly requested this replacement.
+**Why:** The user found the previous map-first guided picker unintuitive and explicitly requested this replacement. They later replaced the monochrome-map preference with a Google-like full-colour appearance.
 
 **How to apply:** Keep household roles immediately visible, connect active inputs to map highlighting, and minimize steps to add a place. Do not restore the place-first/tag-later sequence. Preserve clear sample-location limitations until real place data is added.
 
@@ -50,3 +50,9 @@ Use a restrained blue-and-white theme for life-entry controls and pins, not a di
 **Why:** The user explicitly rejected the many colours and asked to move these buttons to change their order.
 
 **How to apply:** Distinguish roles through names, icons and numbers rather than rainbow colours. Preserve user-defined order when places are added or edited.
+
+This is a prototype: a familiar Google-like map appearance is sufficient; a real Google Maps integration or API key is not required. Use a four-dot drag handle without visible up/down buttons or explanatory reorder instructions.
+
+**Why:** The user clarified the prototype scope and explicitly asked for intuitive, customer-centred interactions rather than over-explaining controls.
+
+**How to apply:** Keep visible controls minimal and self-explanatory, while retaining accessible labels and keyboard alternatives. Do not ask for Google credentials just to achieve this visual treatment.

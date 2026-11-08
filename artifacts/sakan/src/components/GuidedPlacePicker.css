@@ -9,18 +9,13 @@
 .gpp .sakan-geo{height:min(640px,calc(100dvh - 120px));min-height:420px;border-radius:18px;background:#e6e6e6}
 
 .gpp-rows{display:flex;flex-direction:column;gap:8px}
-.gpp-order-hint{margin:0;color:var(--soft);font-size:12px}
-.gpp-sort-row{display:grid;grid-template-columns:48px minmax(0,1fr);gap:4px;align-items:start;border-radius:12px;border:1px solid transparent}
+.gpp-sort-row{display:grid;grid-template-columns:40px minmax(0,1fr);gap:4px;align-items:start;border-radius:12px;border:1px solid transparent}
 .gpp-sort-row.is-dragging{opacity:.6}
 .gpp-sort-row.is-drop-target{border-color:#fff;background:rgba(63,182,234,.15)}
-.gpp-order-controls{display:flex;flex-direction:column;align-items:center;padding:3px 0}
-.gpp-grip,.gpp-order-arrows button{display:grid;place-items:center;border:0;background:transparent;color:#cfe6f3;border-radius:5px}
-.gpp-grip{width:44px;height:28px;touch-action:none;cursor:grab}
+.gpp-order-controls{display:flex;align-items:center;align-self:center}
+.gpp-grip{display:grid;place-items:center;border:0;background:transparent;color:#a6c7d9;border-radius:8px;width:40px;height:44px;touch-action:none;cursor:grab;transition:background .15s,color .15s}
 .gpp-grip:active{cursor:grabbing}
-.gpp-order-arrows{display:flex;gap:1px}
-.gpp-order-arrows button{width:24px;min-height:28px;padding:0}
-.gpp-order-arrows button:disabled{opacity:.25;cursor:default}
-.gpp-grip:hover,.gpp-order-arrows button:not(:disabled):hover{background:#0d5a83;color:#fff}
+.gpp-grip:hover,.gpp-grip:focus-visible{background:#0d5a83;color:#fff}
 .gpp-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:2px;border:1px solid var(--line);border-left:4px solid var(--k);border-radius:12px;background:rgba(5,55,82,.85);padding:4px 6px 4px 0;animation:sakan-rise .2s ease}
 .gpp-row-main{display:flex;align-items:center;gap:12px;border:0;background:none;color:var(--ink);text-align:left;padding:8px 10px;min-width:0}
 .gpp-num{width:28px;height:28px;border-radius:50%;background:var(--k);color:#032b46;display:grid;place-items:center;font:800 12px 'Manrope',sans-serif;flex:none}
@@ -63,20 +58,20 @@
 .gpp-chip svg{color:var(--k)}.gpp-chip:hover{border-color:var(--k)}
 .gpp-note{margin:0;font-size:11px;color:var(--muted);line-height:1.5}
 
-/* Monochrome map: filter only the tile pane so markers keep their colour */
-.sakan-geo.is-mono .leaflet-tile-pane{filter:grayscale(1) contrast(1.08) brightness(1.04)!important}
-.sakan-geo.is-mono{background:#e4e4e4;border-color:#1b1f23}
-.sakan-geo.is-mono .sakan-geo-controls button{background:#16191c;color:#fff;border-color:#16191c}
-.sakan-geo.is-mono .sakan-geo-controls button:hover{background:#2c3136}
-.sakan-geo.is-mono .sakan-geo-caption{background:rgba(22,25,28,.86);border-color:transparent;color:#eee}
-.sakan-geo.is-mono .leaflet-control-attribution{background:rgba(255,255,255,.85);color:#222}
+/* Familiar full-colour streets, with original tile colours and quiet floating controls. */
+.sakan-geo.is-familiar .leaflet-tile-pane{filter:saturate(.65) brightness(1.06)}
+.sakan-geo.is-familiar{background:#e8f0f4;border-color:rgba(255,255,255,.16)}
+.sakan-geo.is-familiar .sakan-geo-controls button{background:#fff;color:#34495e;border:1px solid #dce3e7;box-shadow:0 2px 6px rgba(0,0,0,.14)}
+.sakan-geo.is-familiar .sakan-geo-controls button:hover{background:#f3f7fb;color:#087db7}
+.sakan-geo.is-familiar .sakan-geo-caption{background:rgba(255,255,255,.95);border-color:transparent;color:#496172;border-radius:6px;padding:6px 9px;max-width:max-content;right:auto}
+.sakan-geo.is-familiar .leaflet-control-attribution{background:rgba(255,255,255,.9);color:#52616c}
 
 /* Markers */
 .sakan-geo .sakan-geo-pin span{background:var(--k,#3fb6ea)}
-.sakan-geo.is-mono .sakan-geo-pin span{border-color:#16191c}
+.sakan-geo.is-familiar .sakan-geo-pin span{border-color:#fff}
 .sakan-geo-pin,.sakan-geo-sample{position:relative}
 .sakan-geo-pin b,.sakan-geo-sample b{position:absolute;left:calc(100% + 6px);top:50%;transform:translateY(-50%);white-space:nowrap;font:700 11px 'DM Sans',sans-serif;color:#16191c;background:rgba(255,255,255,.92);padding:2px 7px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.18);pointer-events:none}
-.sakan-geo-pin b{background:#16191c;color:#fff}
+.sakan-geo-pin b{background:#fff;color:#174f71}
 .sakan-geo-pin.is-active span{transform:scale(1.25);box-shadow:0 0 0 4px #fff,0 0 0 7px #16191c}
 .sakan-geo-pin.is-dim{opacity:.55}
 .sakan-geo-pin span{transition:transform .2s ease}
@@ -108,7 +103,7 @@
   .gpp-editor,.gpp-row,.gpp-slot{scroll-margin-top:370px}
 }
 @media(max-width:480px){
-  .gpp-sort-row{grid-template-columns:48px minmax(0,1fr)}
+  .gpp-sort-row{grid-template-columns:40px minmax(0,1fr)}
   .gpp-row{grid-template-columns:minmax(0,1fr) 30px 30px;padding-right:2px}
   .gpp-row .sakan-icon-button{width:30px;min-width:30px}
   .gpp-row-main{gap:7px;padding-left:7px}
