@@ -15,9 +15,9 @@ import {
 } from '../sakan-data';
 import { Choice, Dialog, MoneyField, Row, cityImages, imageUrl, posterStyle } from './sakan-ui';
 import { MonitorDashboard, MonitorToggle } from './sakan-monitor';
-import { monitorStore, useMonitor } from '../hooks/use-monitor';
-import { canMonitorGoal, isMonitorHash, monitorHash, monitorPropertyFromHash } from '../monitor-navigation';
-import { priceAlertsStore } from '../hooks/use-price-alerts';
+import { clearAllMonitors, useMonitor } from '../hooks/use-monitor';
+import { canMonitorGoal, isMonitorHash, monitorHash, monitorPropertyFromHash, monitorScopeFromHash } from '../monitor-navigation';
+import { clearAllPriceAlerts } from '../hooks/use-price-alerts';
 import { GuidedPlacePicker } from './GuidedPlacePicker';
 import { reorderDestinations } from '../life-place-order';
 import './sakan.css';
@@ -76,8 +76,11 @@ export function Sakan() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [qKey, setQKey] = useState<QKey>(() => typeof window !== 'undefined' && window.location.hash === '#places' ? 'places' : 'goal');
   const [screen, setScreen] = useState<Screen>(() => typeof window !== 'undefined' && isMonitorHash(window.location.hash) ? 'monitor' : 'questions');
-  const [monitorPropertyId, setMonitorPropertyId] = useState<string | null>(() => typeof window !== 'undefined' ? monitorPropertyFromHash(window.location.hash) : null);
-  const monitor = useMonitor();
+  const initialMonitorRoute = useRef(typeof window !== 'undefined' ? window.location.hash : '');
+  const monitorScope = draft.goal === 'invest' ? 'invest' : 'live';
+  const monitor = useMonitor(monitorScope);
+  const monitorPropertyId = monitor.view.propertyId;
+  const setMonitorPropertyId = (id: string) => monitor.setView({ propertyId: id });
   const [selected, setSelected] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [editing, setEditing] = useState<Destination | null>(null);
@@ -189,6 +192,18 @@ export function Sakan() {
   }, [toast]);
   useEffect(() => { window.scrollTo({ top: 0 }); }, [screen, qKey]);
   useEffect(() => {
+    if (!workspaceReady || catalogState !== 'ready') return;
+    const route = initialMonitorRoute.current;
+    initialMonitorRoute.current = '';
+    if (!canMonitor || !isMonitorHash(route)) return;
+    const scope = monitorScopeFromHash(route);
+    const id = monitorPropertyFromHash(route);
+    // A link from another journey must not overwrite this journey's selection.
+    if ((!scope || scope === monitorScope) && id && catalog.some((listing) => listing.id === id)) {
+      monitor.setView({ propertyId: id });
+    }
+  }, [workspaceReady, catalogState, canMonitor, monitorScope, catalog, monitor.setView]);
+  useEffect(() => {
     if (workspaceReady && !canMonitor && screen === 'monitor') {
       setScreen('questions');
       setQKey('goal');
@@ -196,9 +211,9 @@ export function Sakan() {
   }, [workspaceReady, canMonitor, screen]);
   useEffect(() => {
     const url = window.location.pathname + window.location.search;
-    if (screen === 'monitor' && workspaceReady && canMonitor && window.location.hash !== monitorHash(monitorPropertyId)) window.history.replaceState(null, '', url + monitorHash(monitorPropertyId));
+    if (screen === 'monitor' && workspaceReady && canMonitor && window.location.hash !== monitorHash(monitorPropertyId, monitorScope)) window.history.replaceState(null, '', url + monitorHash(monitorPropertyId, monitorScope));
     else if ((screen !== 'monitor' && isMonitorHash(window.location.hash)) || (window.location.hash === '#places' && (screen !== 'questions' || qKey !== 'places'))) window.history.replaceState(null, '', url);
-  }, [screen, qKey, workspaceReady, canMonitor, monitorPropertyId]);
+  }, [screen, qKey, workspaceReady, canMonitor, monitorPropertyId, monitorScope]);
 
   const updateDraft = (patch: Partial<WorkspaceDraft>) => {
     touch();
@@ -401,9 +416,9 @@ export function Sakan() {
       setModal(null);
       setSaveState('saved');
       setWorkspaceReady(true);
-      monitorStore.clear();
-      const alertClearError = priceAlertsStore.clear();
-      if (alertClearError) setError(alertClearError);
+      const monitorClearError = clearAllMonitors();
+      const alertClearError = clearAllPriceAlerts();
+      if (monitorClearError || alertClearError) setError([monitorClearError, alertClearError].filter(Boolean).join(' '));
       setToast('Private workspace deleted and reinitialized · browser monitoring cleared');
     } catch (resetError) {
       setError(`Could not delete your workspace. ${errorText(resetError)}`);
@@ -651,7 +666,7 @@ export function Sakan() {
           <span className="rx-tag">{listing.ready ? 'Ready' : 'Off-plan'}</span>
           <span className="rx-poster-title">{listing.name}</span>
         </button>
-        {canMonitor && <MonitorToggle listing={listing} onOpen={openPropertyMonitor} />}
+        {canMonitor && <MonitorToggle listing={listing} scope={monitorScope} onOpen={openPropertyMonitor} />}
         <div className="rx-poster-body">
           <div className="rx-meta">{listing.area} · {listing.beds === 0 ? 'Studio' : `${listing.beds} bed`} · {listing.type}</div>
           <div className="rx-price">{formatAED(price)}<small>{draft.goal === 'rent' ? ' / year' : draft.goal === 'invest' && result ? ` · ${result.netYield.toFixed(1)}% sample net` : ''}</small></div>
@@ -692,7 +707,7 @@ export function Sakan() {
           {screen !== 'detail' && <button className="rx-cta" data-testid="button-featured-details" onClick={() => openDetail(listing.id)}><Info size={16} /> Full details</button>}
           <button className="rx-ghost" data-testid="button-featured-save" aria-pressed={saved.includes(listing.id)} onClick={() => void toggleSave(listing.id)}>{saved.includes(listing.id) ? <><BookmarkCheck size={16} /> On My list</> : <><Plus size={16} /> My list</>}</button>
           <button className="rx-ghost" aria-pressed={compare.includes(listing.id)} onClick={() => void toggleCompare(listing.id)}><Scale size={16} /> {compare.includes(listing.id) ? 'In compare' : 'Compare'}</button>
-          {canMonitor && <MonitorToggle listing={listing} variant="ghost" onOpen={openPropertyMonitor} />}
+          {canMonitor && <MonitorToggle listing={listing} scope={monitorScope} variant="ghost" onOpen={openPropertyMonitor} />}
           {screen === 'detail' && <button className="rx-ghost" data-testid="button-detail-enquiry" onClick={() => openEnquiry(listing)}>Record an enquiry</button>}
         </div>
       </div>
@@ -821,7 +836,7 @@ export function Sakan() {
             {screen === 'results' && resultView}
             {screen === 'detail' && detailView}
             {screen === 'privacy' && privacyView}
-            {screen === 'monitor' && canMonitor && <MonitorDashboard catalog={catalog} propertyId={monitorPropertyId} onPropertyChange={setMonitorPropertyId} onOpenDetail={openDetail} onBack={() => setScreen(resultsFresh ? 'results' : 'questions')} />}
+            {screen === 'monitor' && canMonitor && <MonitorDashboard key={monitorScope} scope={monitorScope} catalog={catalog} propertyId={monitorPropertyId} onPropertyChange={setMonitorPropertyId} onOpenDetail={openDetail} onBack={() => setScreen(resultsFresh ? 'results' : 'questions')} />}
           </>}
     </main>
     <footer className="sakan-footer">Realmax is a decision-making prototype. Listings, prices, rents, travel times, yields and images are illustrative sample data, not live market information or financial advice. <span className="rx-credit">City photography: <a href="https://www.pexels.com/photo/6535465/" target="_blank" rel="noreferrer">Pexels 6535465</a> and <a href="https://www.pexels.com/photo/3680908/" target="_blank" rel="noreferrer">Pexels 3680908</a>, decorative only, not listings.</span></footer>

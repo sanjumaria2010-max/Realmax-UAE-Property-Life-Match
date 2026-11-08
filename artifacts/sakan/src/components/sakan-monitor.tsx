@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, ArrowLeft, ArrowRight, BellRing, Check, ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatAED, type Listing } from '../sakan-data';
-import { useMonitor } from '../hooks/use-monitor';
+import { useMonitor, type MonitorScope } from '../hooks/use-monitor';
 import { usePriceAlerts } from '../hooks/use-price-alerts';
 import { evaluatePriceAlert } from '../price-alerts-data';
 import {
@@ -11,8 +11,8 @@ import {
 } from '../monitor-data';
 import './sakan-monitor.css';
 
-export function MonitorToggle({ listing, variant = 'chip', onOpen }: { listing: Listing; variant?: 'chip' | 'ghost'; onOpen: (id: string) => void }) {
-  const { isMonitored } = useMonitor();
+export function MonitorToggle({ listing, scope, variant = 'chip', onOpen }: { listing: Listing; scope: MonitorScope; variant?: 'chip' | 'ghost'; onOpen: (id: string) => void }) {
+  const { isMonitored } = useMonitor(scope);
   const on = isMonitored(listing.id);
   return <button
     type="button"
@@ -43,17 +43,19 @@ const MetricSeg = Seg<MonitorMetric>;
 const RangeSeg = Seg<2 | 3>;
 const HorizonSeg = Seg<1 | 2 | 3>;
 
-export function MonitorDashboard({ catalog, propertyId, onPropertyChange, onOpenDetail, onBack }: { catalog: Listing[]; propertyId: string | null; onPropertyChange: (id: string) => void; onOpenDetail: (id: string) => void; onBack: () => void }) {
-  const { ids, error, add, remove, dismissError } = useMonitor();
-  const alerts = usePriceAlerts();
+export function MonitorDashboard({ scope, catalog, propertyId, onPropertyChange, onOpenDetail, onBack }: { scope: MonitorScope; catalog: Listing[]; propertyId: string | null; onPropertyChange: (id: string) => void; onOpenDetail: (id: string) => void; onBack: () => void }) {
+  const { ids, error, add, remove, dismissError, view, setView } = useMonitor(scope);
+  const alerts = usePriceAlerts(scope);
   const monitored = useMemo(() => ids.flatMap((id) => { const l = catalog.find((x) => x.id === id); return l ? [l] : []; }), [ids, catalog]);
   const missing = ids.filter((id) => !catalog.some((x) => x.id === id));
   const available = catalog.filter((l) => !ids.includes(l.id));
-  const [metric, setMetric] = useState<MonitorMetric>('sale');
-  const [range, setRange] = useState<2 | 3>(3);
-  const [horizon, setHorizon] = useState<1 | 2 | 3>(2);
-  const [showForecast, setShowForecast] = useState(false);
-  const [showTable, setShowTable] = useState(false);
+  const metric: MonitorMetric = scope === 'live' ? 'sale' : view.metric;
+  const { range, horizon, showForecast, showTable } = view;
+  const setMetric = (value: MonitorMetric) => setView({ metric: value });
+  const setRange = (value: 2 | 3) => setView({ range: value });
+  const setHorizon = (value: 1 | 2 | 3) => setView({ horizon: value });
+  const setShowForecast = (value: boolean) => setView({ showForecast: value });
+  const setShowTable = (value: boolean) => setView({ showTable: value });
 
   const active = catalog.find((l) => l.id === propertyId) || monitored[0] || catalog[0] || null;
   const isMonitored = !!active && ids.includes(active.id);
@@ -131,12 +133,13 @@ export function MonitorDashboard({ catalog, propertyId, onPropertyChange, onOpen
   const up = model.summary.change >= 0;
 
   return <div className="rx-page rxm">
+    <div className="sakan-eyebrow" style={{ marginBottom: 12 }} data-testid="text-monitor-journey">{scope === 'live' ? 'Buy to Live · Home value monitor' : 'Invest Thoughtfully · Investment monitor'}</div>
     <header className="rxm-bar">
       <button className="rxm-icon" onClick={onBack} aria-label="Back" data-testid="button-monitor-back"><ArrowLeft size={16} /></button>
       <label className="rxm-select">
         <span className="rxm-sr">Property</span>
         <select value={active.id} onChange={(e) => onPropertyChange(e.target.value)} data-testid="select-monitor-property">
-          {monitored.length > 0 && <optgroup label={`Monitoring (${monitored.length})`}>
+          {monitored.length > 0 && <optgroup label={`${scope === 'live' ? 'Homes' : 'Investments'} you monitor (${monitored.length})`}>
             {monitored.map((l) => <option key={l.id} value={l.id}>{l.name} · {l.area}</option>)}
           </optgroup>}
           {available.length > 0 && <optgroup label="Sample catalogue">
@@ -145,7 +148,8 @@ export function MonitorDashboard({ catalog, propertyId, onPropertyChange, onOpen
         </select>
         <ChevronDown size={15} aria-hidden />
       </label>
-      <MetricSeg label="Metric" value={metric} onChange={setMetric} options={[['sale', 'Sale'], ['rent', 'Rent']]} />
+      {scope === 'invest' ? <MetricSeg label="Metric" value={metric} onChange={setMetric} options={[['sale', 'Capital value'], ['rent', 'Rental income']]} />
+        : <span className="rxm-btn ghost" data-testid="text-monitor-home-value">Home value</span>}
       <RangeSeg label="History range" value={range} onChange={setRange} options={[[2, '2y'], [3, '3y']]} />
       <div className="rxm-bar-end">
         {isMonitored
@@ -192,7 +196,7 @@ export function MonitorDashboard({ catalog, propertyId, onPropertyChange, onOpen
         <p className="rxm-chart-foot">Fictional sample history in {unit}, as of {asOf}. Not recorded transactions.</p>
 
         <div className="rxm-subbar">
-          <button className="rxm-btn ghost sm" aria-expanded={showForecast} onClick={() => setShowForecast((v) => !v)} data-testid="button-monitor-forecast">{showForecast ? 'Hide' : 'Show'} future scenarios</button>
+          <button className="rxm-btn ghost sm" aria-expanded={showForecast} onClick={() => setShowForecast(!showForecast)} data-testid="button-monitor-forecast">{showForecast ? 'Hide' : 'Show'} future scenarios</button>
           {showForecast && <HorizonSeg label="Scenario horizon" value={horizon} onChange={setHorizon} options={[[1, '1y'], [2, '2y'], [3, '3y']]} />}
         </div>
         {showForecast && <div className="rxm-scenarios">

@@ -29,15 +29,26 @@ test('property-specific monitor links preserve the selected property across relo
   assert.equal(navigation.isMonitorHash('#places'), false);
   assert.equal(navigation.monitorPropertyFromHash('#monitor/%broken'), null);
 });
+test('monitor links identify their journey as well as the property', () => {
+  for (const scope of ['live', 'invest']) {
+    const hash = navigation.monitorHash('same-property', scope);
+    assert.equal(navigation.monitorScopeFromHash(hash), scope);
+    assert.equal(navigation.monitorPropertyFromHash(hash), 'same-property');
+  }
+  assert.equal(navigation.monitorScopeFromHash('#monitor/legacy-property'), null);
+});
 for (const alreadyMonitored of [false, true]) {
   test(`property action opens its own monitor without toggling tracking (${alreadyMonitored ? 'existing' : 'new'})`, () => {
     const monitor = load('components/sakan-monitor.tsx', (name) => {
       if (name === 'react/jsx-runtime') return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) };
-      if (name === '../hooks/use-monitor') return { useMonitor: () => ({ isMonitored: () => alreadyMonitored, toggle: () => assert.fail('Must not toggle tracking') }) };
+      if (name === '../hooks/use-monitor') return { useMonitor: (scope) => {
+        assert.equal(scope, 'invest');
+        return { isMonitored: () => alreadyMonitored, toggle: () => assert.fail('Must not toggle tracking') };
+      } };
       return {};
     });
     let opened = null, stopped = false;
-    const button = monitor.MonitorToggle({ listing: { id: 'target-property', name: 'Target home' }, onOpen: (id) => { opened = id; } });
+    const button = monitor.MonitorToggle({ listing: { id: 'target-property', name: 'Target home' }, scope: 'invest', onOpen: (id) => { opened = id; } });
     button.props.onClick({ stopPropagation: () => { stopped = true; } });
     assert.equal(opened, 'target-property');
     assert(stopped);

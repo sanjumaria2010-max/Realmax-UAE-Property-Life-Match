@@ -56,22 +56,39 @@ test('historical summary uses endpoint change and monthly fluctuations', () => {
   assert.equal(result.avgAbsPct, 10);
 });
 
-function storageHarness(initial = null, blocked = false, alertStore = false) {
-  let raw = initial;
+function storageHarness(initial = null, blocked = false, alertStore = false, legacy = false, seed = null) {
+  const primary = alertStore ? 'realmax.price-alerts.v2.live' : 'realmax.monitor.v2.live';
+  const oldKey = alertStore ? 'realmax.price-alerts.v1' : 'realmax.monitor.v1';
+  const values = new Map(seed || []);
+  if (initial !== null) {
+    let raw = initial;
+    if (!alertStore && !legacy) {
+      try {
+        const ids = JSON.parse(raw);
+        if (Array.isArray(ids)) raw = JSON.stringify({ ids, view: { propertyId: null, metric: 'sale', range: 3, horizon: 2, showForecast: false, showTable: false } });
+      } catch {}
+    }
+    values.set(legacy ? oldKey : primary, raw);
+  }
   const events = {};
+  const handlers = new Map();
   const window = {
     localStorage: {
-      getItem() { if (blocked) throw Error('blocked'); return raw; },
-      setItem(_key, value) { if (blocked) throw Error('blocked'); raw = value; },
-      removeItem() { if (blocked) throw Error('blocked'); raw = null; },
+      getItem(key) { if (blocked) throw Error('blocked'); return values.get(key) ?? null; },
+      setItem(key, value) { if (blocked) throw Error('blocked'); values.set(key, value); },
+      removeItem(key = primary) { if (blocked) throw Error('blocked'); values.delete(key); },
     },
-    addEventListener(name, fn) { events[name] = fn; },
-    removeEventListener(name) { delete events[name]; },
+    addEventListener(name, fn) {
+      if (!handlers.has(name)) handlers.set(name, new Set());
+      handlers.get(name).add(fn);
+      events[name] = (event) => handlers.get(name)?.forEach((handler) => handler(event));
+    },
+    removeEventListener(name, fn) { handlers.get(name)?.delete(fn); },
   };
   const module = alertStore
     ? load('src/hooks/use-price-alerts.ts', { window, require: (name) => name === '../price-alerts-data' ? alertData : { useSyncExternalStore() {} } })
     : load('src/hooks/use-monitor.ts', { window });
-  return { store: alertStore ? module.priceAlertsStore : module.monitorStore, window, events, get raw() { return raw; } };
+  return { store: alertStore ? module.priceAlertsStore : module.monitorStore, module, values, window, events, get raw() { return values.get(primary) ?? null; } };
 }
 
 test('monitor additions, removals and reload persistence are independent of saved homes', () => {
@@ -81,7 +98,7 @@ test('monitor additions, removals and reload persistence are independent of save
   assert.equal(JSON.stringify(h.store.get().ids), '["a","b"]');
   assert.equal(JSON.stringify(storageHarness(h.raw).store.get().ids), '["a","b"]');
   h.store.toggle('a'); assert.equal(JSON.stringify(h.store.get().ids), '["b"]');
-  h.store.clear(); assert.equal(h.raw, null);
+  h.store.clear(); assert.equal(JSON.parse(h.raw).ids.length, 0);
 });
 
 test('malformed or blocked storage exposes an error rather than pretending persistence', () => {
@@ -100,7 +117,7 @@ test('removal from another tab clears the current monitored list', () => {
   let notices = 0;
   const unsubscribe = h.store.subscribe(() => notices++);
   h.window.localStorage.removeItem();
-  h.events.storage({ key: 'realmax.monitor.v1' });
+  h.events.storage({ key: 'realmax.monitor.v2.live' });
   assert.equal(h.store.get().ids.length, 0);
   assert.equal(notices, 1);
   unsubscribe();
@@ -138,7 +155,7 @@ test('alert settings persist, edit, remove and clear without affecting other pro
   assert.equal(h.store.get().rules['a:sale'], undefined);
   assert.equal(h.store.get().rules['a:rent'].max, 20);
   assert.equal(h.store.clear(), null);
-  assert.equal(h.raw, null);
+  assert.equal(h.raw, '{}');
 });
 
 test('invalid and blocked alert writes cannot report a successful save', () => {
@@ -150,4 +167,90 @@ test('invalid and blocked alert writes cannot report a successful save', () => {
   assert.equal(Object.keys(blocked.store.get().rules).length, 0);
   assert.match(blocked.store.get().error, /Could not save/);
   assert.match(storageHarness('{"a:sale":{"propertyId":"a"}}', false, true).store.get().error, /could not be read/);
+});
+
+test('Buy and Invest keep independent properties, selections and chart preferences after reload', () => {
+  const h = storageHarness();
+  const buy = h.module.getMonitorStore('live');
+  const invest = h.module.getMonitorStore('invest');
+  buy.add('home-a'); invest.add('investment-b');
+  buy.setView({ propertyId: 'home-a', range: 2, horizon: 3, showForecast: true });
+  invest.setView({ propertyId: 'investment-b', metric: 'rent', range: 3 });
+  assert.equal(JSON.stringify(buy.get().ids), '["home-a"]');
+  assert.equal(JSON.stringify(invest.get().ids), '["investment-b"]');
+  const fresh = storageHarness(null, false, false, false, h.values);
+  const freshBuy = fresh.module.getMonitorStore('live').get();
+  const freshInvest = fresh.module.getMonitorStore('invest').get();
+  assert.equal(freshBuy.view.propertyId, 'home-a');
+  assert.equal(freshBuy.view.range, 2);
+  assert.equal(freshBuy.view.metric, 'sale');
+  assert.equal(freshInvest.view.propertyId, 'investment-b');
+  assert.equal(freshInvest.view.metric, 'rent');
+  assert.equal(freshInvest.view.showForecast, false);
+  buy.remove('home-a');
+  assert.equal(invest.get().ids[0], 'investment-b');
+});
+
+test('legacy properties are copied once, with no resurrection after one journey removes them', () => {
+  const h = storageHarness('["shared-home"]', false, false, true);
+  const buy = h.module.getMonitorStore('live'), invest = h.module.getMonitorStore('invest');
+  assert.equal(buy.get().ids[0], 'shared-home');
+  assert.equal(invest.get().ids[0], 'shared-home');
+  buy.remove('shared-home');
+  const fresh = storageHarness(null, false, false, false, h.values);
+  assert.equal(fresh.module.getMonitorStore('live').get().ids.length, 0);
+  assert.equal(fresh.module.getMonitorStore('invest').get().ids[0], 'shared-home');
+  assert.equal(h.values.get('realmax.monitor.v1'), '["shared-home"]');
+});
+
+test('alerts for the same property and metric are independent between journeys', () => {
+  const h = storageHarness(null, false, true);
+  const buy = h.module.getPriceAlertsStore('live'), invest = h.module.getPriceAlertsStore('invest');
+  assert.equal(buy.save('same-home', 'sale', 100, 200), null);
+  assert.equal(invest.save('same-home', 'sale', 300, 400), null);
+  assert.equal(buy.get().rules['same-home:sale'].max, 200);
+  assert.equal(invest.get().rules['same-home:sale'].max, 400);
+  buy.remove('same-home', 'sale');
+  assert.equal(invest.get().rules['same-home:sale'].min, 300);
+  const fresh = storageHarness(null, false, true, false, h.values);
+  assert.equal(Object.keys(fresh.module.getPriceAlertsStore('live').get().rules).length, 0);
+  assert.equal(fresh.module.getPriceAlertsStore('invest').get().rules['same-home:sale'].max, 400);
+});
+
+test('legacy alerts are retained separately and clearing one journey never clears the other', () => {
+  const legacy = JSON.stringify({ 'shared:sale': { propertyId: 'shared', metric: 'sale', min: 10, max: 20, enabled: true } });
+  const h = storageHarness(legacy, false, true, true);
+  assert.equal(h.store.get().rules['shared:sale'].max, 20);
+  const invest = h.module.getPriceAlertsStore('invest');
+  assert.equal(invest.get().rules['shared:sale'].max, 20);
+  h.store.clear();
+  const fresh = storageHarness(null, false, true, false, h.values);
+  assert.equal(Object.keys(fresh.module.getPriceAlertsStore('live').get().rules).length, 0);
+  assert.equal(fresh.module.getPriceAlertsStore('invest').get().rules['shared:sale'].max, 20);
+});
+
+test('cross-tab updates are delivered only to the affected journey', () => {
+  const h = storageHarness();
+  let buyNotices = 0, investNotices = 0;
+  h.store.subscribe(() => buyNotices++);
+  h.module.getMonitorStore('invest').subscribe(() => investNotices++);
+  h.events.storage({ key: 'realmax.monitor.v2.invest' });
+  assert.equal(buyNotices, 0);
+  assert.equal(investNotices, 1);
+});
+
+test('private-workspace reset clears both journeys and the legacy backups', () => {
+  const h = storageHarness('["legacy"]', false, false, true);
+  h.store.add('buy');
+  h.module.getMonitorStore('invest').add('invest');
+  assert.equal(h.module.clearAllMonitors(), null);
+  assert.equal(h.store.get().ids.length, 0);
+  assert.equal(h.module.getMonitorStore('invest').get().ids.length, 0);
+  assert(!h.values.has('realmax.monitor.v1'));
+  const alerts = storageHarness(null, false, true);
+  alerts.store.save('buy', 'sale', 100, null);
+  alerts.module.getPriceAlertsStore('invest').save('invest', 'rent', 10, null);
+  assert.equal(alerts.module.clearAllPriceAlerts(), null);
+  assert.equal(Object.keys(alerts.store.get().rules).length, 0);
+  assert.equal(Object.keys(alerts.module.getPriceAlertsStore('invest').get().rules).length, 0);
 });

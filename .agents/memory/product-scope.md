@@ -27,6 +27,12 @@ Monitor is available only in Buy to live and Invest, never in Rent. Clicking Mon
 
 **How to apply:** Hide both the Monitor navigation and property actions in Rent. Keep monitoring removal inside the dashboard rather than making a property-card click silently stop tracking.
 
+Buy to Live and Invest must each have an independent Monitor, including tracked properties, selected property, viewing preferences and alert settings.
+
+**Why:** The user explicitly said each workflow should have its own monitor with different selections, rather than sharing one global monitor.
+
+**How to apply:** Changing or removing a property or alert in one journey must not alter the other. Buy to Live focuses on home value; investment monitoring also supports rental income.
+
 The Monitor screen should be very simple and graph-first, with minimum/maximum alert controls and property metadata on the right, and historical information below.
 
 **Why:** The user explicitly disliked the cluttered monitoring screen and said the graph should be the first thing users see.
