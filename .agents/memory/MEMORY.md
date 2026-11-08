@@ -1,3 +1,4 @@
 - [Product scope](product-scope.md) — UAE property matching starts with household life and supports renting, live-in buying, and investing equally.
 - [API client generation](api-generation.md) — Orval version detection in this workspace can target the wrong React Query API unless explicitly configured.
 - [JSX instrumentation](jsx-instrumentation.md) — specialize generic controls outside JSX; explicit generic JSX tags can break development metadata injection.
+- [Map interactions](map-interactions.md) — sample area-centre pins can overlap; separate hit targets and keep captions/action bars from blocking selection.

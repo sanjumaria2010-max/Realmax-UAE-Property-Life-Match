@@ -13,10 +13,11 @@ import {
   estimateScore, formatAED, initialBrief, samplePlaces as fallbackPlaces,
   travelFor, type Brief, type Destination, type Enquiry, type Goal, type Listing, type Match, type Priority,
 } from '../sakan-data';
-import { Choice, Dialog, DubaiMap, MoneyField, Row, cityImages, imageUrl, posterStyle } from './sakan-ui';
+import { Choice, Dialog, MoneyField, Row, cityImages, imageUrl, posterStyle } from './sakan-ui';
 import { MonitorDashboard, MonitorToggle } from './sakan-monitor';
 import { monitorStore, useMonitor } from '../hooks/use-monitor';
 import { priceAlertsStore } from '../hooks/use-price-alerts';
+import { GuidedPlacePicker } from './GuidedPlacePicker';
 import './sakan.css';
 
 type Screen = 'questions' | 'results' | 'detail' | 'privacy' | 'monitor';
@@ -71,7 +72,7 @@ export function Sakan() {
   const [saved, setSaved] = useState<string[]>([]);
   const [compare, setCompare] = useState<string[]>([]);
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
-  const [qKey, setQKey] = useState<QKey>('goal');
+  const [qKey, setQKey] = useState<QKey>(() => typeof window !== 'undefined' && window.location.hash === '#places' ? 'places' : 'goal');
   const [screen, setScreen] = useState<Screen>(() => typeof window !== 'undefined' && window.location.hash === '#monitor' ? 'monitor' : 'questions');
   const monitor = useMonitor();
   const [selected, setSelected] = useState<string | null>(null);
@@ -186,8 +187,8 @@ export function Sakan() {
   useEffect(() => {
     const url = window.location.pathname + window.location.search;
     if (screen === 'monitor' && window.location.hash !== '#monitor') window.history.replaceState(null, '', url + '#monitor');
-    else if (screen !== 'monitor' && window.location.hash === '#monitor') window.history.replaceState(null, '', url);
-  }, [screen]);
+    else if ((screen !== 'monitor' && window.location.hash === '#monitor') || (window.location.hash === '#places' && (screen !== 'questions' || qKey !== 'places'))) window.history.replaceState(null, '', url);
+  }, [screen, qKey]);
 
   const updateDraft = (patch: Partial<WorkspaceDraft>) => {
     touch();
@@ -354,6 +355,19 @@ export function Sakan() {
     setError('');
     setToast(editing ? 'Place updated' : 'Place added');
   };
+  const commitDestination = (destination: Destination, editingId: string | null) => {
+    if (editingId && !draft.destinations.some((item) => item.id === editingId)) return 'This place no longer exists. Add it again instead.';
+    if (!destination.label.trim() || !destination.place.trim()) return 'Add a destination name and place to continue.';
+    if (!places.includes(destination.place)) return 'Choose one of the supported sample places.';
+    if (destination.maxMinutes < 5 || destination.maxMinutes > 120) return 'Travel limit must be between 5 and 120 minutes.';
+    const next = editingId
+      ? draft.destinations.map((item) => item.id === editingId ? { ...destination, id: editingId } : item)
+      : [...draft.destinations, { ...destination, id: crypto.randomUUID() }];
+    updateDraft({ destinations: next });
+    setError('');
+    setToast(editingId ? 'Place updated' : 'Place added');
+    return '';
+  };
   const resetWorkspace = async () => {
     if (!window.confirm('Delete this private browser workspace, including saved homes, your brief, enquiry history, monitored properties and price alerts in this browser? This cannot be undone.')) return;
     resetInProgressRef.current = true;
@@ -476,18 +490,7 @@ export function Sakan() {
   };
 
   const placesQuestion = <div className="rx-q-body">
-    {draft.destinations.length === 0 ? <div className="rx-empty-inline"><MapPin size={20} /><div><strong>No places yet</strong><span>That is fine. Skip ahead and travel will not affect ranking, or add a place below.</span></div></div>
-      : <div className="sakan-destinations">{draft.destinations.map((destination) => {
-        const Icon = iconFor(destination.kind);
-        return <div className="sakan-destination" key={destination.id} data-testid={`row-destination-${destination.id}`}>
-          <span className="sakan-pin"><Icon size={16} /></span><div><div className="sakan-dest-name">{destination.label}</div><div className="sakan-dest-meta">{destination.place} · {destination.frequency} {destination.frequency === 1 ? 'day' : 'days'}/week · {destination.mode}</div></div>
-          <span className="sakan-badge">{destination.required ? `Max ${destination.maxMinutes} min` : 'Preferred'}</span>
-          <div className="sakan-dest-actions"><button className="sakan-icon-button" aria-label={`Edit ${destination.label}`} onClick={() => openDestination(destination)}><Pencil size={14} /></button><button className="sakan-icon-button" aria-label={`Remove ${destination.label}`} data-testid={`button-remove-destination-${destination.id}`} onClick={() => updateDraft({ destinations: draft.destinations.filter((item) => item.id !== destination.id) })}><Trash2 size={14} /></button></div>
-        </div>;
-      })}</div>}
-    <div className="sakan-section-title">Add a place</div>
-    <div className="sakan-toggle-row">{['Work', 'Partner work', 'School', 'Worship', 'Sport', 'Custom'].map((kind) => <button key={kind} className="sakan-chip" data-testid={`button-add-${kind.toLowerCase().replace(/\W/g, '-')}`} onClick={() => openDestination({ id: '', kind, label: kind === 'Work' ? 'My work' : kind, place: places[kind === 'School' ? 2 : kind === 'Worship' ? 3 : kind === 'Sport' ? 6 : 0] || places[0] || fallbackPlaces[0], address: '', frequency: kind === 'Worship' ? 1 : 5, mode: 'car', maxMinutes: 30, required: false, preferred: true })}><Plus size={11} /> {kind}</button>)}</div>
-    {draft.destinations.length > 0 && <DubaiMap destinations={draft.destinations} />}
+    <GuidedPlacePicker destinations={draft.destinations} places={places} onCommit={commitDestination} onRemove={(id) => updateDraft({ destinations: draft.destinations.filter((item) => item.id !== id) })} />
   </div>;
 
   const rhythmQuestion = <div className="rx-q-body">

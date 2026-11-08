@@ -38,3 +38,9 @@ Do not show a right-hand storyboard or summary box on any questionnaire page.
 **Why:** The user explicitly said they do not want the storyboard and do not need that box at all, expanding the earlier landing-only removal to all steps.
 
 **How to apply:** Keep progress and navigation above or below the questions rather than reintroducing a side summary panel.
+
+The user chose a guided-map interaction for selecting work, school and other household destinations instead of detail-first forms.
+
+**Why:** After discussing three concepts, the user selected “Guided map (recommended).”
+
+**How to apply:** Keep location selection visual with search/map choice and explicit confirmation, then ask travel preferences separately. Preserve clear sample-location limitations until real place data is added.
