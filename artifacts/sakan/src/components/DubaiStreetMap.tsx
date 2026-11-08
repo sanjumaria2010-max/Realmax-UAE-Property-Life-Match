@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { Crosshair, MapPin, Minus, Plus, RefreshCw } from 'lucide-react';
 import { areaKey, type Destination } from '../sakan-data';
 import { AREA_CENTRES, kindSlug, samplePlacePoint, separateMarkerPixels } from '../sample-place-geometry';
+import { UaeMapTiles } from './UaeMapTiles';
 
 export { AREA_CENTRES };
 
@@ -65,7 +66,7 @@ export function DubaiStreetMap({ destinations, picker, children }: { destination
     if (!el.current) return;
     const m = L.map(el.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: false });
     m.attributionControl.setPrefix(false);
-    const t = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    const t = new UaeMapTiles('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 18, minZoom: 9,
       attribution: 'Tiles &copy; <a href="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer" target="_blank" rel="noopener noreferrer" title="Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, and the GIS User Community">Esri &amp; contributors</a> · &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>',
     });

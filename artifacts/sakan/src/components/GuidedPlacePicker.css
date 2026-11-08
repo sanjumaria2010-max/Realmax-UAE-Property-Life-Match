@@ -59,8 +59,8 @@
 .gpp-note{margin:0;font-size:11px;color:var(--muted);line-height:1.5}
 
 /* Familiar full-colour streets, with original tile colours and quiet floating controls. */
-.sakan-geo.is-familiar .leaflet-tile-pane{filter:saturate(.65) brightness(1.06)}
-.sakan-geo.is-familiar{background:#e8f0f4;border-color:rgba(255,255,255,.16)}
+.sakan-geo.is-familiar .leaflet-tile-pane{filter:none}
+.sakan-geo.is-familiar{background:#76bddf;border-color:rgba(255,255,255,.22)}
 .sakan-geo.is-familiar .sakan-geo-controls button{background:#fff;color:#34495e;border:1px solid #dce3e7;box-shadow:0 2px 6px rgba(0,0,0,.14)}
 .sakan-geo.is-familiar .sakan-geo-controls button:hover{background:#f3f7fb;color:#087db7}
 .sakan-geo.is-familiar .sakan-geo-caption{background:rgba(255,255,255,.95);border-color:transparent;color:#496172;border-radius:6px;padding:6px 9px;max-width:max-content;right:auto}

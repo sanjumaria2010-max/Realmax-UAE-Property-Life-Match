@@ -56,3 +56,9 @@ This is a prototype: a familiar Google-like map appearance is sufficient; a real
 **Why:** The user clarified the prototype scope and explicitly asked for intuitive, customer-centred interactions rather than over-explaining controls.
 
 **How to apply:** Keep visible controls minimal and self-explanatory, while retaining accessible labels and keyboard alternatives. Do not ask for Google credentials just to achieve this visual treatment.
+
+The map should have a beautiful UAE feel: sea blue, sand and yellow/golden tones, while household controls and pins stay blue and white.
+
+**Why:** The user explicitly refined the map palette to “sea blue, sand, yellow.”
+
+**How to apply:** Use the regional palette on geographic features, not as different accent colours for household roles.
