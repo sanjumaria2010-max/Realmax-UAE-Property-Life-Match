@@ -39,8 +39,8 @@ Do not show a right-hand storyboard or summary box on any questionnaire page.
 
 **How to apply:** Keep progress and navigation above or below the questions rather than reintroducing a side summary panel.
 
-The user chose a guided-map interaction for selecting work, school and other household destinations instead of detail-first forms.
+Life entry should be input-first: simple work, partner and children/school inputs on the left, with a large black-and-white, Uber-like map on the right that responds as places are selected.
 
-**Why:** After discussing three concepts, the user selected “Guided map (recommended).”
+**Why:** The user found the previous map-first guided picker unintuitive and explicitly requested this replacement.
 
-**How to apply:** Keep location selection visual with search/map choice and explicit confirmation, then ask travel preferences separately. Preserve clear sample-location limitations until real place data is added.
+**How to apply:** Keep household roles immediately visible, connect active inputs to map highlighting, and minimize steps to add a place. Do not restore the place-first/tag-later sequence. Preserve clear sample-location limitations until real place data is added.

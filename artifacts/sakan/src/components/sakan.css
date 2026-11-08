@@ -639,3 +639,11 @@ body:has(.sakan-root){background:#032b46}
   .rx-detail .rx-billboard{margin-top:0}
 }
 @media(prefers-reduced-motion:reduce){.rx-skel{animation:none}}
+/* Places step: full-width input-left / map-right */
+.rx-question-places .rx-question-bg{display:none}
+.rx-question-places .rx-question-layout,.rx-question-places .rx-question-layout-no-rail{max-width:1480px;grid-template-columns:minmax(0,1fr)}
+.rx-question-places .rx-question-inner{padding-top:20px;padding-bottom:28px}
+.rx-question-places .rx-progress{margin-bottom:14px}
+.rx-question-places .rx-q-title{font-size:clamp(24px,3vw,34px)!important;margin-bottom:4px}
+.rx-question-places .rx-q-sub{margin-bottom:16px;font-size:14px}
+.rx-question-places .rx-q-actions{margin-top:18px}

@@ -475,7 +475,7 @@ export function Sakan() {
   const qText: Record<QKey, { kicker: string; title: string; sub: string }> = {
     goal: { kicker: 'Let us start with the story', title: 'What brings you to Realmax?', sub: 'Pick one. You can change it later without losing your other answers.' },
     use: { kicker: 'Investor brief', title: 'Will you ever live in it yourself?', sub: 'A pure investment can skip personal travel entirely.' },
-    places: { kicker: 'The places in your week', title: 'Where does your life happen?', sub: 'Add work, school, prayer or sport. Optional, but it makes travel tradeoffs real. Only supported sample places are available.' },
+    places: { kicker: 'Your week', title: 'Add your everyday places', sub: 'Work, partner, kids. Each one shows up on the map. All optional.' },
     rhythm: { kicker: 'Your weekly rhythm', title: 'How often, and how far?', sub: 'A daily commute and a weekly class are not the same priority. Required places become hard travel limits.' },
     money: {
       kicker: 'The numbers',
@@ -596,7 +596,7 @@ export function Sakan() {
     }
   };
 
-  const questionView = <div className={`rx-question rx-goal-${draft.goal}`}>
+  const questionView = <div className={`rx-question rx-goal-${draft.goal}${current === 'places' ? ' rx-question-places' : ''}`}>
     <div className="rx-question-bg" aria-hidden="true"><img src={draft.goal === 'invest' ? cityImages.skyline : cityImages.marina} alt="" /><span className="rx-city-glow" /></div>
     <div className="rx-question-layout rx-question-layout-no-rail">
     <div className="rx-question-inner" key={current}>

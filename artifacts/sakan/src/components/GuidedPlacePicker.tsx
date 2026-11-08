@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Church, Dumbbell, Heart, MapPin, Pencil, School, Search, Sparkles, Trash2, Briefcase, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { Briefcase, Check, Church, Dumbbell, Heart, MapPin, Pencil, Plus, School, Search, Sparkles, Trash2, X } from 'lucide-react';
 import { areaKey, type Destination } from '../sakan-data';
 import { KIND_OPTIONS, kindSlug, nearbySamplePlaces, samplePlacePoint } from '../sample-place-geometry';
 import { DubaiStreetMap } from './DubaiStreetMap';
@@ -14,157 +14,167 @@ export type GuidedPlacePickerProps = {
   onRemove: (id: string) => void;
 };
 
+type Row = { key: string; id: string | null; kind: string; label: string; query: string; place: string | null };
+
 const kindIcon = { work: Briefcase, partner: Heart, school: School, worship: Church, sport: Dumbbell, custom: Sparkles } as const;
-const defaultLabel = (kind: string) => kind === 'Work' ? 'My work' : kind === 'Custom' ? 'Custom place' : kind;
+const defaultLabel: Record<string, string> = { Work: 'My work', 'Partner work': 'Partner work', School: 'School', Worship: 'Prayer', Sport: 'Sport', Custom: 'Custom place' };
+const roleName: Record<string, string> = { Work: 'Work', 'Partner work': 'Partner', School: 'Child school', Worship: 'Prayer', Sport: 'Sport', Custom: 'Other' };
+const CORE = ['Work', 'Partner work', 'School'] as const;
+const slugId = (s: string) => s.replace(/\W+/g, '-').toLowerCase();
 
 export function GuidedPlacePicker({ destinations, places, onCommit, onRemove }: GuidedPlacePickerProps) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [candidate, setCandidate] = useState<string | null>(null);
+  const [row, setRow] = useState<Row | null>(null);
   const [tap, setTap] = useState<[number, number] | null>(null);
-  const [confirmed, setConfirmed] = useState<string | null>(null);
-  const [kind, setKind] = useState<string>('Work');
-  const [label, setLabel] = useState('');
-  const [localError, setLocalError] = useState('');
-  const stepCardRef = useRef<HTMLDivElement>(null);
-  const tokenRef = useRef(0);
-  const [token, setToken] = useState(0);
-  const bump = () => { tokenRef.current += 1; setToken(tokenRef.current); };
+  const [focus, setFocus] = useState<{ key: string; place: string } | null>(null);
+  const [error, setError] = useState('');
+  const seq = useRef(0);
+  const nextKey = () => { seq.current += 1; return `r${seq.current}`; };
 
-  const editing = editingId ? destinations.find((d) => d.id === editingId) || null : null;
-  const mappable = useMemo(() => places.filter((p) => samplePlacePoint(p)), [places]);
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return places.filter((p) => !q || p.toLowerCase().includes(q) || areaKey(p).toLowerCase().includes(q));
-  }, [places, query]);
   const nearby = useMemo(() => tap ? nearbySamplePlaces(places, tap[0], tap[1]) : null, [tap, places]);
-  useEffect(() => {
-    if (candidate || confirmed) stepCardRef.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
-  }, [candidate, confirmed]);
+  const filtered = useMemo(() => {
+    const q = (row?.query || '').trim().toLowerCase();
+    return places.filter((p) => !q || p.toLowerCase().includes(q) || areaKey(p).toLowerCase().includes(q));
+  }, [places, row?.query]);
+  const missingCore = CORE.filter((k) => !destinations.some((d) => d.kind === k));
 
-  const resetAll = () => {
-    bump();
-    setEditingId(null); setQuery(''); setCandidate(null); setTap(null); setConfirmed(null);
-    setKind('Work'); setLabel(''); setLocalError('');
+  const focusOn = (place: string | null) => { if (place && samplePlacePoint(place)) setFocus({ key: nextKey(), place }); };
+  const canSwitch = () => {
+    if (!row) return true;
+    const original = destinations.find((d) => d.id === row.id);
+    const dirty = original
+      ? row.kind !== original.kind || row.label !== original.label || row.place !== original.place || !!row.query.trim()
+      : !!(row.label.trim() || row.place || row.query.trim());
+    return !dirty || window.confirm('Discard the unsaved changes to this place? Your saved places will not change.');
   };
-  const pick = (place: string) => {
-    if (!places.includes(place)) { setLocalError('That is not a supported sample place.'); return; }
-    bump(); setCandidate(place); setLocalError('');
+  const start = (kind: string, place: string | null = null) => {
+    if (!canSwitch()) return;
+    setRow({ key: nextKey(), id: null, kind, label: '', query: '', place });
+    setTap(null); setError(''); focusOn(place);
   };
-  const onMapTap = (lat: number, lng: number) => {
-    if (confirmed) return;
-    bump(); setTap([lat, lng]); setCandidate(null); setLocalError('');
+  const edit = (d: Destination) => {
+    if (row?.id === d.id || !canSwitch()) return;
+    const kind = (KIND_OPTIONS as readonly string[]).includes(d.kind) ? d.kind : 'Custom';
+    const ok = places.includes(d.place);
+    setRow({ key: nextKey(), id: d.id, kind, label: d.label, query: '', place: ok ? d.place : null });
+    setTap(null);
+    setError(ok ? '' : 'This saved place is no longer supported. Choose a supported sample place.');
+    focusOn(d.place);
   };
-  const onSearch = (value: string) => {
-    bump(); setQuery(value); setCandidate(null); setTap(null); setLocalError('');
+  const cancel = () => { setRow(null); setTap(null); setError(''); };
+  const choose = (place: string) => {
+    if (!places.includes(place)) { setError('That is not a supported sample place.'); return; }
+    setTap(null); setError('');
+    if (!row) { start(missingCore[0] || 'Custom', place); return; }
+    setRow({ ...row, place, query: '' });
+    focusOn(place);
   };
-  const confirm = (forPlace: string, forToken: number) => {
-    if (forToken !== tokenRef.current || forPlace !== candidate || !places.includes(forPlace)) {
-      setLocalError('Your selection changed. Choose the place again, then confirm.');
-      return;
-    }
-    bump(); setConfirmed(forPlace); setCandidate(null); setTap(null); setLocalError('');
-  };
-  const changePlace = () => { bump(); setCandidate(confirmed); setConfirmed(null); setLocalError(''); };
-  const chooseKind = (next: string) => { setKind(next); setLocalError(''); };
-  const startEdit = (d: Destination) => {
-    bump();
-    setEditingId(d.id); setQuery(''); setTap(null); setCandidate(null);
-    setConfirmed(places.includes(d.place) ? d.place : null);
-    const knownKind = (KIND_OPTIONS as readonly string[]).includes(d.kind) ? d.kind : 'Custom';
-    setKind(knownKind);
-    setLabel(d.label === defaultLabel(knownKind) ? '' : d.label);
-    setLocalError(places.includes(d.place) ? '' : 'This saved place is no longer supported. Choose a supported sample place.');
-  };
+  const patch = (p: Partial<Row>) => setRow((r) => r ? { ...r, ...p } : r);
   const save = () => {
-    if (!confirmed) { setLocalError('Confirm a supported sample place first.'); return; }
-    const finalLabel = label.trim() || defaultLabel(kind);
-    const base: Destination = editing
-      ? { ...editing }
-      : { id: '', kind, label: finalLabel, place: confirmed, address: '', frequency: kind === 'Worship' ? 1 : 5, mode: 'car', maxMinutes: 30, required: false, preferred: true };
-    const next: Destination = { ...base, kind, label: finalLabel, place: confirmed, address: editing?.place === confirmed ? editing.address : `${areaKey(confirmed)} area, Dubai` };
+    if (!row) return;
+    if (!row.place || !places.includes(row.place)) { setError('Choose one of the supported places first.'); return; }
+    const editing = row.id ? destinations.find((d) => d.id === row.id) || null : null;
+    if (row.id && !editing) { setError('This place no longer exists. Add it again instead.'); return; }
+    const label = row.label.trim() || defaultLabel[row.kind] || row.kind;
+    const base: Destination = editing ? { ...editing } : { id: '', kind: row.kind, label, place: row.place, address: '', frequency: row.kind === 'Worship' ? 1 : 5, mode: 'car', maxMinutes: 30, required: false, preferred: true };
+    const next: Destination = { ...base, kind: row.kind, label, place: row.place, address: editing && editing.place === row.place ? editing.address : `${areaKey(row.place)} area, Dubai` };
     const message = onCommit(next, editing ? editing.id : null);
-    if (message) { setLocalError(message); return; }
-    resetAll();
+    if (message) { setError(message); return; }
+    setRow(null); setTap(null); setError('');
+  };
+  const onSelectSaved = (id: string) => {
+    const d = destinations.find((x) => x.id === id);
+    if (!d) return;
+    if (row) choose(d.place); else edit(d);
   };
 
-  const KindIcon = kindIcon[kindSlug(kind)];
-  const stage = confirmed ? 'kind' : candidate ? 'confirm' : 'find';
-  const prompt = editing ? `Editing ${editing.label}` : stage === 'kind' ? 'Who is this place for?' : 'Find a place in your week';
+  const editor = (r: Row) => {
+    const I = kindIcon[kindSlug(r.kind)];
+    return <div className={`gpp-editor kind-${kindSlug(r.kind)}`} data-testid="card-place-editor">
+      <div className="gpp-editor-head">
+        <span className="gpp-ico"><I size={15} /></span>
+        <select className="gpp-kindselect" aria-label="Type of place" value={r.kind} onChange={(e) => patch({ kind: e.target.value })} data-testid="select-destination-kind">
+          {KIND_OPTIONS.map((k) => <option key={k} value={k}>{roleName[k]}</option>)}
+        </select>
+        <input className="gpp-labelinput" maxLength={40} value={r.label} placeholder={defaultLabel[r.kind]} aria-label="Label (optional)" onChange={(e) => patch({ label: e.target.value })} data-testid="input-destination-label" />
+      </div>
+      {r.place
+        ? <div className="gpp-cand" data-testid="status-candidate">
+          <MapPin size={15} />
+          <span><strong data-testid="text-candidate-place">{r.place}</strong><small>{areaKey(r.place)} approx. area centre · not saved yet</small></span>
+          <button type="button" className="sakan-textbutton" onClick={() => patch({ place: null })} data-testid="button-change-place">Change</button>
+        </div>
+        : <>
+          <label className="gpp-search">
+            <Search size={15} aria-hidden="true" />
+            <input type="search" autoFocus value={r.query} onChange={(e) => patch({ query: e.target.value })} placeholder="Search supported places" aria-label="Search supported places" data-testid="input-place-search" />
+            {r.query && <button type="button" aria-label="Clear search" onClick={() => patch({ query: '' })}><X size={14} /></button>}
+          </label>
+          <ul className="gpp-list" role="listbox" aria-label="Supported sample places">
+            {filtered.length === 0 && <li className="gpp-empty" data-testid="status-no-search-results">No match. Realmax only supports these sample places, not live addresses.</li>}
+            {filtered.map((p) => <li key={p} role="option" aria-selected={false}>
+              <button type="button" className="gpp-option" onClick={() => choose(p)} data-testid={`option-place-${slugId(p)}`}>
+                <MapPin size={13} /><span><strong>{p}</strong><small>{areaKey(p)}{samplePlacePoint(p) ? '' : ' · not on map'}</small></span>
+              </button></li>)}
+          </ul>
+          <p className="gpp-hint">Or tap a pin on the map.</p>
+        </>}
+      <div className="gpp-actions">
+        <button type="button" className="sakan-secondary" onClick={cancel} data-testid="button-cancel-place">Cancel</button>
+        <button type="button" className="sakan-primary" disabled={!r.place} onClick={save} data-testid="button-save-destination"><Check size={14} /> {r.id ? 'Save changes' : 'Save'}</button>
+      </div>
+    </div>;
+  };
 
   return <div className="gpp" data-testid="guided-place-picker">
-    <div className="gpp-prompt">
-      <span className="gpp-step" aria-hidden="true">{stage === 'kind' ? '2' : '1'}</span>
-      <div>
-        <strong data-testid="text-picker-prompt">{prompt}</strong>
-        <small>{stage === 'kind' ? 'Tag it, add a short label if you like, then save. Frequency and travel time come next.' : 'Search the supported sample places, pick a marker, or tap the map near where you go.'}</small>
+    <div className="gpp-panel">
+      <div className="gpp-rows" aria-live="polite">
+        {destinations.map((d, i) => {
+          const I = kindIcon[kindSlug(d.kind)];
+          if (row && row.id === d.id) return <div key={d.id} data-testid={`row-destination-${d.id}`}>{editor(row)}</div>;
+          return <div key={d.id} className={`gpp-row kind-${kindSlug(d.kind)}`} data-testid={`row-destination-${d.id}`}>
+            <button type="button" className="gpp-row-main" onClick={() => focusOn(d.place)} aria-label={`Show ${d.label} on map`} data-testid={`button-focus-destination-${d.id}`}>
+              <span className="gpp-num">{i + 1}</span>
+              <span className="gpp-row-text"><small><I size={11} /> {roleName[d.kind] || d.kind}</small><strong>{d.label}</strong><em>{d.place}</em></span>
+            </button>
+            <button type="button" className="sakan-icon-button" aria-label={`Edit ${d.label}`} onClick={() => edit(d)} data-testid={`button-edit-destination-${d.id}`}><Pencil size={14} /></button>
+            <button type="button" className="sakan-icon-button" aria-label={`Remove ${d.label}`} onClick={() => { if (row?.id === d.id) cancel(); onRemove(d.id); }} data-testid={`button-remove-destination-${d.id}`}><Trash2 size={14} /></button>
+          </div>;
+        })}
+        {row && !row.id && editor(row)}
+        {missingCore.filter((k) => !(row && !row.id && row.kind === k)).map((k) => {
+          const I = kindIcon[kindSlug(k)];
+          return <button type="button" key={k} className={`gpp-slot kind-${kindSlug(k)}`} onClick={() => start(k)} data-testid={`button-add-${slugId(k)}`}>
+            <span className="gpp-ico"><I size={15} /></span><span><strong>{k === 'Work' ? 'Where do you work?' : k === 'Partner work' ? 'Partner\u2019s work' : 'Children\u2019s school'}</strong><small>Optional · tap to add</small></span><Plus size={16} />
+          </button>;
+        })}
       </div>
+      <div className="gpp-more">
+        <span className="gpp-label">Add another</span>
+        <div className="gpp-chips">
+          {(['School', 'Worship', 'Sport', 'Custom', 'Work', 'Partner work'] as const).filter((k) => k !== 'Work' && k !== 'Partner work' ? true : !missingCore.includes(k)).map((k) => {
+            const I = kindIcon[kindSlug(k)];
+            return <button type="button" key={k} className={`gpp-chip kind-${kindSlug(k)}`} onClick={() => start(k)} data-testid={`button-add-more-${slugId(k)}`}><I size={13} />{k === 'School' ? 'Another child' : roleName[k]}</button>;
+          })}
+        </div>
+      </div>
+      {error && <div className="sakan-error" role="alert" data-testid="status-picker-error">{error}</div>}
+      <p className="gpp-note">Seven sample places are supported. Pins are approximate area centres, not live address lookup.</p>
     </div>
 
-    {stage !== 'kind' && <label className="gpp-search">
-      <Search size={16} aria-hidden="true" />
-      <input type="search" value={query} onChange={(e) => onSearch(e.target.value)} placeholder="Search supported sample places" aria-label="Search supported sample places" data-testid="input-place-search" />
-      {query && <button type="button" aria-label="Clear search" onClick={() => onSearch('')}><X size={14} /></button>}
-    </label>}
-
-    <DubaiStreetMap destinations={destinations} picker={{ places: confirmed ? [confirmed] : mappable, candidate: confirmed || candidate, tap, onPick: (place) => { if (!confirmed) pick(place); }, onMapTap }} />
-
-    <ul className="gpp-legend" aria-label="Map legend">
-      {KIND_OPTIONS.map((k) => <li key={k}><i className={`gpp-dot kind-${kindSlug(k)}`} />{k}</li>)}
-      <li><i className="gpp-dot sample" />Supported sample place</li>
-      <li><i className="gpp-dot candidate" />{confirmed ? 'Confirmed selection, not saved' : 'Selected, not confirmed'}</li>
-    </ul>
-
-    <div ref={stepCardRef} className="gpp-card" aria-live="polite" data-testid="card-place-step">
-      {stage !== 'kind' && nearby && !candidate && (nearby.length
-        ? <div className="gpp-near"><div className="gpp-label">Supported sample places near your tap</div>
-          {nearby.map((n) => <button type="button" key={n.place} className="gpp-option" onClick={() => pick(n.place)} data-testid={`button-nearby-${kindSlug(n.place)}-${n.place.replace(/\W+/g, '-').toLowerCase()}`}>
-            <MapPin size={14} /><span><strong>{n.place}</strong><small>{n.area} area centre · about {n.km.toFixed(1)} km from tap</small></span></button>)}
-        </div>
-        : <div className="gpp-none" data-testid="status-no-nearby"><strong>No supported place near here</strong><span>Realmax only has sample travel data for the places listed below. Try another spot or pick from the list.</span></div>)}
-
-      {stage === 'confirm' && candidate && <div className="gpp-confirm">
-        <div><div className="gpp-label">Selected · not saved yet</div><strong data-testid="text-candidate-place">{candidate}</strong><small>{areaKey(candidate)} approximate area centre, not an exact address</small></div>
-        <div className="gpp-actions">
-          <button type="button" className="sakan-secondary" onClick={() => { bump(); setCandidate(null); }} data-testid="button-cancel-candidate">Not this</button>
-          <button type="button" className="sakan-primary" onClick={() => confirm(candidate, token)} data-testid="button-confirm-place"><Check size={14} /> Confirm place</button>
-        </div>
-      </div>}
-
-      {stage === 'find' && !nearby && <div className="gpp-label">Supported sample places{query ? ` matching "${query}"` : ''}</div>}
-      {stage !== 'kind' && <ul className="gpp-list" role="listbox" aria-label="Supported sample places">
-        {filtered.length === 0 && <li className="gpp-empty" data-testid="status-no-search-results">No supported sample place matches. Realmax cannot add other addresses yet.</li>}
-        {filtered.map((p) => <li key={p} role="option" aria-selected={p === candidate}>
-          <button type="button" className={`gpp-option${p === candidate ? ' on' : ''}`} onClick={() => pick(p)} data-testid={`option-place-${p.replace(/\W+/g, '-').toLowerCase()}`}>
-            <MapPin size={14} /><span><strong>{p}</strong><small>{areaKey(p)} area centre{samplePlacePoint(p) ? '' : ' · not shown on map'}</small></span>{p === candidate && <Check size={14} />}
-          </button></li>)}
-      </ul>}
-
-      {stage === 'kind' && confirmed && <div className="gpp-kind">
-        <div className="gpp-confirmed"><Check size={14} /><span><strong data-testid="text-confirmed-place">{confirmed}</strong><small>{areaKey(confirmed)} approximate area centre</small></span><button type="button" className="sakan-textbutton" onClick={changePlace} data-testid="button-change-place">Change</button></div>
-        <div className="gpp-kinds" role="radiogroup" aria-label="What is this place?">
-          {KIND_OPTIONS.map((k) => { const I = kindIcon[kindSlug(k)]; return <button type="button" role="radio" aria-checked={kind === k} key={k} className={`gpp-kindbtn kind-${kindSlug(k)}${kind === k ? ' on' : ''}`} onClick={() => chooseKind(k)} data-testid={`button-add-${k.toLowerCase().replace(/\W/g, '-')}`}><I size={14} />{k}</button>; })}
-        </div>
-        <label className="gpp-labelfield"><span>Short label (optional)</span>
-          <input className="sakan-input" maxLength={40} value={label} placeholder={defaultLabel(kind)} onChange={(e) => setLabel(e.target.value)} data-testid="input-destination-label" /></label>
-        <div className="gpp-actions">
-          <button type="button" className="sakan-secondary" onClick={resetAll} data-testid="button-cancel-place">Cancel</button>
-          <button type="button" className="sakan-primary" onClick={save} data-testid="button-save-destination"><KindIcon size={14} /> {editing ? 'Save changes' : 'Add to my week'}</button>
-        </div>
-      </div>}
-      {editing && stage !== 'kind' && <div className="gpp-actions"><button type="button" className="sakan-secondary" onClick={resetAll} data-testid="button-cancel-edit">Cancel editing</button></div>}
-      {localError && <div className="sakan-error" role="alert" data-testid="status-picker-error">{localError}</div>}
-    </div>
-
-    <div className="gpp-saved">
-      <div className="gpp-label">Your places · {destinations.length}</div>
-      {destinations.length === 0 ? <div className="gpp-none"><strong>No places yet</strong><span>That is fine. Skip ahead and travel will not affect ranking.</span></div>
-        : destinations.map((d, i) => { const I = kindIcon[kindSlug(d.kind)]; return <div key={d.id} className={`gpp-saved-row${d.id === editingId ? ' on' : ''}`} data-testid={`row-destination-${d.id}`}>
-          <span className={`gpp-num kind-${kindSlug(d.kind)}`}>{i + 1}</span>
-          <span className="gpp-saved-text"><strong><I size={12} /> {d.label}</strong><small>{d.kind} · {d.place} · {areaKey(d.place)} area</small></span>
-          <button type="button" className="sakan-icon-button" aria-label={`Edit ${d.label}`} onClick={() => startEdit(d)} data-testid={`button-edit-destination-${d.id}`}><Pencil size={14} /></button>
-          <button type="button" className="sakan-icon-button" aria-label={`Remove ${d.label}`} onClick={() => { if (d.id === editingId) resetAll(); onRemove(d.id); }} data-testid={`button-remove-destination-${d.id}`}><Trash2 size={14} /></button>
-        </div>; })}
+    <div className="gpp-mapwrap">
+      <DubaiStreetMap destinations={destinations} mono picker={{
+        places, candidate: row && row.place && !(row.id && destinations.some((d) => d.id === row.id && d.place === row.place)) ? row.place : null, tap, onPick: choose,
+        onMapTap: (lat, lng) => { setTap([lat, lng]); setError(''); },
+        activeId: row ? row.id : destinations.find((d) => d.place === focus?.place)?.id ?? null, activeKind: row?.kind ?? null,
+        focusPlace: focus?.place ?? null, focusKey: focus?.key ?? null, onSelectSaved,
+      }}>
+        {nearby && <div className="gpp-nearby" data-testid="card-nearby">
+          <div className="gpp-nearby-head"><span>{nearby.length ? 'Supported places nearby' : 'No supported place here'}</span><button type="button" aria-label="Close nearby places" onClick={() => setTap(null)} data-testid="button-close-nearby"><X size={14} /></button></div>
+          {nearby.length === 0 && <small data-testid="status-no-nearby">Only the seven sample places can be added. Try nearer a pin.</small>}
+          {nearby.map((n) => <button type="button" key={n.place} className="gpp-option" onClick={() => choose(n.place)} data-testid={`button-nearby-${slugId(n.place)}`}>
+            <MapPin size={13} /><span><strong>{n.place}</strong><small>{n.area} · {n.km.toFixed(1)} km</small></span></button>)}
+        </div>}
+      </DubaiStreetMap>
     </div>
   </div>;
 }
