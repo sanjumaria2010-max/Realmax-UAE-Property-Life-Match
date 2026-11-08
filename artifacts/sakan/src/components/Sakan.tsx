@@ -17,6 +17,7 @@ import { Choice, Dialog, DubaiMap, MoneyField, Row, cityImages, imageUrl, poster
 import { JourneyRail, type BriefLine } from './sakan-journey';
 import { MonitorDashboard, MonitorToggle } from './sakan-monitor';
 import { monitorStore, useMonitor } from '../hooks/use-monitor';
+import { priceAlertsStore } from '../hooks/use-price-alerts';
 import './sakan.css';
 
 type Screen = 'questions' | 'results' | 'detail' | 'privacy' | 'monitor';
@@ -355,7 +356,7 @@ export function Sakan() {
     setToast(editing ? 'Place updated' : 'Place added');
   };
   const resetWorkspace = async () => {
-    if (!window.confirm('Delete this private browser workspace, including saved homes, your brief, enquiry history and monitored properties in this browser? This cannot be undone.')) return;
+    if (!window.confirm('Delete this private browser workspace, including saved homes, your brief, enquiry history, monitored properties and price alerts in this browser? This cannot be undone.')) return;
     resetInProgressRef.current = true;
     setResetBusy(true);
     try {
@@ -378,6 +379,8 @@ export function Sakan() {
       setSaveState('saved');
       setWorkspaceReady(true);
       monitorStore.clear();
+      const alertClearError = priceAlertsStore.clear();
+      if (alertClearError) setError(alertClearError);
       setToast('Private workspace deleted and reinitialized · browser monitoring cleared');
     } catch (resetError) {
       setError(`Could not delete your workspace. ${errorText(resetError)}`);

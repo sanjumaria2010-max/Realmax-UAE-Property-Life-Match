@@ -20,3 +20,9 @@ For property monitoring, the user chose clearly labelled sample data for histori
 **Why:** The user explicitly selected “Clearly labelled sample data” rather than connecting real market data.
 
 **How to apply:** Do not imply monitoring uses verified transaction history or a live predictive model. Keep fictional history and assumption-based future scenarios clearly distinguished.
+
+The Monitor screen should be very simple and graph-first, with minimum/maximum alert controls and property metadata on the right, and historical information below.
+
+**Why:** The user explicitly disliked the cluttered monitoring screen and said the graph should be the first thing users see.
+
+**How to apply:** Keep secondary metrics, forecast controls, detailed tables and methodology from competing with the historical price graph.

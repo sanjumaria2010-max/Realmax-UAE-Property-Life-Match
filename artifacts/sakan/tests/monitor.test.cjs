@@ -13,6 +13,7 @@ function load(relative, globals = {}) {
   return exports;
 }
 const data = load('src/monitor-data.ts');
+const alertData = load('src/price-alerts-data.ts');
 
 test('sample history is stable, monthly, positive, and anchored to the listing', () => {
   for (const metric of ['sale', 'rent']) {
@@ -55,7 +56,7 @@ test('historical summary uses endpoint change and monthly fluctuations', () => {
   assert.equal(result.avgAbsPct, 10);
 });
 
-function storageHarness(initial = null, blocked = false) {
+function storageHarness(initial = null, blocked = false, alertStore = false) {
   let raw = initial;
   const events = {};
   const window = {
@@ -67,7 +68,10 @@ function storageHarness(initial = null, blocked = false) {
     addEventListener(name, fn) { events[name] = fn; },
     removeEventListener(name) { delete events[name]; },
   };
-  return { store: load('src/hooks/use-monitor.ts', { window }).monitorStore, window, events, get raw() { return raw; } };
+  const module = alertStore
+    ? load('src/hooks/use-price-alerts.ts', { window, require: (name) => name === '../price-alerts-data' ? alertData : { useSyncExternalStore() {} } })
+    : load('src/hooks/use-monitor.ts', { window });
+  return { store: alertStore ? module.priceAlertsStore : module.monitorStore, window, events, get raw() { return raw; } };
 }
 
 test('monitor additions, removals and reload persistence are independent of saved homes', () => {
@@ -100,4 +104,50 @@ test('removal from another tab clears the current monitored list', () => {
   assert.equal(h.store.get().ids.length, 0);
   assert.equal(notices, 1);
   unsubscribe();
+});
+
+test('threshold validation accepts one bound and rejects invalid or reversed bounds', () => {
+  for (const [min, max] of [[null, null], [0, null], [-1, 4], [NaN, 5], [Infinity, null], [10, 10], [12, 10]]) {
+    assert.equal(typeof alertData.validatePriceAlert(min, max), 'string');
+  }
+  for (const [min, max] of [[10, null], [null, 10], [10, 20]]) {
+    assert.equal(alertData.validatePriceAlert(min, max), null);
+  }
+});
+
+test('alerts trigger inclusively at the bounds and stay independent per metric', () => {
+  const rule = { propertyId: 'a', metric: 'sale', min: 100, max: 200, enabled: true };
+  assert.equal(alertData.evaluatePriceAlert(rule, 100).state, 'below');
+  assert.equal(alertData.evaluatePriceAlert(rule, 200).state, 'above');
+  assert.equal(alertData.evaluatePriceAlert(rule, 150).state, 'within');
+  assert.equal(alertData.evaluatePriceAlert(undefined, 150).state, 'unset');
+  assert.equal(alertData.evaluatePriceAlert(rule, -1).state, 'unset');
+  assert.notEqual(alertData.alertKey('a', 'sale'), alertData.alertKey('a', 'rent'));
+});
+
+test('alert settings persist, edit, remove and clear without affecting other property metrics', () => {
+  const h = storageHarness(null, false, true);
+  assert.equal(h.store.save('a', 'sale', 100, 200), null);
+  assert.equal(h.store.save('a', 'rent', null, 20), null);
+  assert.equal(h.store.save('b', 'sale', 300, null), null);
+  assert.equal(h.store.save('a', 'sale', 120, 220), null);
+  assert.equal(h.store.get().rules['a:sale'].min, 120);
+  const restored = storageHarness(h.raw, false, true);
+  assert.equal(restored.store.get().rules['a:rent'].max, 20);
+  h.store.remove('a', 'sale');
+  assert.equal(h.store.get().rules['a:sale'], undefined);
+  assert.equal(h.store.get().rules['a:rent'].max, 20);
+  assert.equal(h.store.clear(), null);
+  assert.equal(h.raw, null);
+});
+
+test('invalid and blocked alert writes cannot report a successful save', () => {
+  const h = storageHarness(null, false, true);
+  assert.equal(typeof h.store.save('a', 'sale', 200, 100), 'string');
+  assert.equal(h.raw, null);
+  const blocked = storageHarness(null, true, true);
+  assert.equal(typeof blocked.store.save('a', 'sale', 100, null), 'string');
+  assert.equal(Object.keys(blocked.store.get().rules).length, 0);
+  assert.match(blocked.store.get().error, /Could not save/);
+  assert.match(storageHarness('{"a:sale":{"propertyId":"a"}}', false, true).store.get().error, /could not be read/);
 });
