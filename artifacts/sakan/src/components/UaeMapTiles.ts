@@ -1,7 +1,7 @@
 import L from 'leaflet';
 import { tintUaeMapPixels } from '../uae-map-palette';
 
-/** Standard georeferenced tiles, rendered with a sea/sand/gold prototype palette. */
+/** Standard georeferenced tiles, rendered in Realmax's blue-and-white prototype palette. */
 export class UaeMapTiles extends L.TileLayer {
   createTile(coords: L.Coords, done: L.DoneCallback): HTMLElement {
     const canvas = document.createElement('canvas');

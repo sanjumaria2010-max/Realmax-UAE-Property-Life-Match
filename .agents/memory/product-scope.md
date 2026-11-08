@@ -57,8 +57,8 @@ This is a prototype: a familiar Google-like map appearance is sufficient; a real
 
 **How to apply:** Keep visible controls minimal and self-explanatory, while retaining accessible labels and keyboard alternatives. Do not ask for Google credentials just to achieve this visual treatment.
 
-The map should have a beautiful UAE feel: sea blue, sand and yellow/golden tones, while household controls and pins stay blue and white.
+The map must match the luxury blue-and-white look of the whole app, rather than use a separate sand/yellow regional palette.
 
-**Why:** The user explicitly refined the map palette to “sea blue, sand, yellow.”
+**Why:** After trying the sea/sand/gold palette, the user said its colours clash with Realmax's “luxury, blue, white, posh” design and asked to sync the map with the app.
 
-**How to apply:** Use the regional palette on geographic features, not as different accent colours for household roles.
+**How to apply:** Keep water, land, roads, map controls and pins in a coherent ocean-blue, pale-blue and white family. Avoid warm or rainbow accents on the map.

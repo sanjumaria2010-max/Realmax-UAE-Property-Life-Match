@@ -58,13 +58,14 @@
 .gpp-chip svg{color:var(--k)}.gpp-chip:hover{border-color:var(--k)}
 .gpp-note{margin:0;font-size:11px;color:var(--muted);line-height:1.5}
 
-/* Familiar full-colour streets, with original tile colours and quiet floating controls. */
+/* The map shares Realmax's ocean-blue surfaces and white detailing. */
 .sakan-geo.is-familiar .leaflet-tile-pane{filter:none}
-.sakan-geo.is-familiar{background:#76bddf;border-color:rgba(255,255,255,.22)}
-.sakan-geo.is-familiar .sakan-geo-controls button{background:#fff;color:#34495e;border:1px solid #dce3e7;box-shadow:0 2px 6px rgba(0,0,0,.14)}
-.sakan-geo.is-familiar .sakan-geo-controls button:hover{background:#f3f7fb;color:#087db7}
-.sakan-geo.is-familiar .sakan-geo-caption{background:rgba(255,255,255,.95);border-color:transparent;color:#496172;border-radius:6px;padding:6px 9px;max-width:max-content;right:auto}
-.sakan-geo.is-familiar .leaflet-control-attribution{background:rgba(255,255,255,.9);color:#52616c}
+.sakan-geo.is-familiar{background:#042236;border-color:rgba(166,211,237,.25);box-shadow:0 18px 48px rgba(0,14,29,.2)}
+.sakan-geo.is-familiar .sakan-geo-controls button{background:rgba(5,48,74,.96);color:#fff;border:1px solid #3a627c;box-shadow:0 2px 8px rgba(0,14,29,.2)}
+.sakan-geo.is-familiar .sakan-geo-controls button:hover{background:#0a4a6e;color:#fff}
+.sakan-geo.is-familiar .sakan-geo-caption{background:rgba(5,44,67,.92);border:1px solid rgba(166,211,237,.2);color:#cfe6f3;border-radius:6px;padding:6px 9px;max-width:max-content;right:auto}
+.sakan-geo.is-familiar .leaflet-control-attribution{background:rgba(4,34,54,.93);color:#cfe6f3}
+.sakan-geo.is-familiar .leaflet-control-attribution a{color:#dceffb}
 
 /* Markers */
 .sakan-geo .sakan-geo-pin span{background:var(--k,#3fb6ea)}
@@ -75,17 +76,17 @@
 .sakan-geo-pin.is-active span{transform:scale(1.25);box-shadow:0 0 0 4px #fff,0 0 0 7px #16191c}
 .sakan-geo-pin.is-dim{opacity:.55}
 .sakan-geo-pin span{transition:transform .2s ease}
-.sakan-geo-sample span{display:block;width:100%;height:100%;border-radius:50%;background:#fff;border:3px solid #16191c;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform .15s ease}
+.sakan-geo-sample span{display:block;width:100%;height:100%;border-radius:50%;background:#123e59;border:3px solid #c9e2f1;box-shadow:0 2px 6px rgba(0,14,29,.25);transition:transform .15s ease}
 .sakan-geo-sample:hover span{transform:scale(1.18)}
 .sakan-geo-sample b{font-weight:600;font-size:10px;opacity:.9}
-.sakan-geo-sample.is-candidate span{background:var(--k,#3fb6ea);border:4px solid #16191c;box-shadow:0 0 0 4px #fff,0 6px 16px rgba(0,0,0,.4);animation:gpp-pulse 1.4s ease-in-out infinite}
-.sakan-geo-sample.is-candidate b{background:#16191c;color:#fff;font-size:11px;border:1px dashed #fff}
+.sakan-geo-sample.is-candidate span{background:var(--k,#3fb6ea);border:4px solid #fff;box-shadow:0 0 0 4px rgba(63,182,234,.4),0 6px 16px rgba(0,14,29,.4);animation:gpp-pulse 1.4s ease-in-out infinite}
+.sakan-geo-sample.is-candidate b{background:#063a5a;color:#fff;font-size:11px;border:1px dashed #bce7fc}
 @keyframes gpp-pulse{50%{transform:scale(1.12)}}
 .sakan-geo-tap span{display:block;width:18px;height:18px;border-radius:50%;border:3px dashed #16191c;background:rgba(255,255,255,.7)}
 .sakan-geo.is-picking .sakan-geo-canvas{cursor:crosshair}
 .sakan-geo-caption{pointer-events:none}
 
-.gpp-nearby{position:absolute;left:12px;bottom:28px;z-index:550;width:min(300px,calc(100% - 24px));background:#16191c;color:#fff;border-radius:12px;padding:10px;display:grid;gap:5px;box-shadow:0 10px 30px rgba(0,0,0,.35);animation:sakan-rise .18s ease}
+.gpp-nearby{position:absolute;left:12px;bottom:28px;z-index:550;width:min(300px,calc(100% - 24px));background:#063a5a;border:1px solid rgba(166,211,237,.25);color:#fff;border-radius:12px;padding:10px;display:grid;gap:5px;box-shadow:0 10px 30px rgba(0,14,29,.35);animation:sakan-rise .18s ease}
 .gpp-nearby-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;font-weight:700;color:#bbb}
 .gpp-nearby-head button{border:0;background:none;color:#fff;display:grid;place-items:center;width:28px;height:28px}
 .gpp-nearby small{font-size:11px;color:#bbb}

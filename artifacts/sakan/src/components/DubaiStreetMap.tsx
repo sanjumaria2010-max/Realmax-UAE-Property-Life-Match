@@ -144,7 +144,7 @@ export function DubaiStreetMap({ destinations, picker, children }: { destination
     items.forEach((it, index) => {
       const at = m.unproject(L.point(separated[index].x, separated[index].y), z);
       if (Math.hypot(pixels[index].x - separated[index].x, pixels[index].y - separated[index].y) > 1) {
-        L.polyline([[it.lat, it.lng], at], { color: '#1b1f23', weight: 1.5, dashArray: '3 3', interactive: false }).addTo(g);
+        L.polyline([[it.lat, it.lng], at], { color: '#94bbd1', opacity: .7, weight: 1.5, dashArray: '3 3', interactive: false }).addTo(g);
       }
       it.build(at);
     });
